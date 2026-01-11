@@ -1,0 +1,63 @@
+import fitz  # PyMuPDF
+from bs4 import BeautifulSoup
+import re
+
+# ----------------------------------
+# NORMALIZATION
+# ----------------------------------
+
+def normalize(t):
+    t = t.lower()
+    t = re.sub(r"\s+", " ", t)
+    t = t.replace("&nbsp;", " ")
+    return t.strip()
+
+# ----------------------------------
+# PDF TEXT
+# ----------------------------------
+
+def extract_pdf_text(pdf_path):
+    doc = fitz.open(pdf_path)
+    text = ""
+    for page in doc:
+        text += page.get_text("text") + " "
+    return normalize(text)
+
+# ----------------------------------
+# HTML TEXT
+# ----------------------------------
+
+def extract_html_text(html_path):
+    with open(html_path, encoding="utf-8") as f:
+        soup = BeautifulSoup(f, "html.parser")
+
+    for tag in soup(["script", "style", "img"]):
+        tag.decompose()
+
+    return normalize(soup.get_text(" "))
+
+# ----------------------------------
+# COMPARE
+# ----------------------------------
+
+def reconcile(pdf, html):
+    pdf_txt = extract_pdf_text(pdf)
+    html_txt = extract_html_text(html)
+
+    missing = set(pdf_txt.split()) - set(html_txt.split())
+    extra = set(html_txt.split()) - set(pdf_txt.split())
+
+    return missing, extra
+
+# ----------------------------------
+# RUN
+# ----------------------------------
+
+if __name__ == "__main__":
+    pdf = "input.pdf"
+    html = "output.htm"
+
+    missing, extra = reconcile(pdf, html)
+
+    print("Missing in HTML:", list(missing)[:30])
+    print("Extra in HTML:", list(extra)[:30])

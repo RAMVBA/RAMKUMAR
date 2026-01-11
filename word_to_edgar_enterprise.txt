@@ -1,0 +1,158 @@
+import os, sys, re
+from docx import Document
+from docx.oxml.ns import qn
+
+# =====================================================
+# HTML + EDGAR HELPERS
+# =====================================================
+
+HTML_MAP = {
+    "&": "&amp;", "<": "&lt;", ">": "&gt;",
+    "•": "&bull;", "–": "&ndash;", "—": "&mdash;",
+    "§": "&sect;", "©": "&copy;", "®": "&reg;",
+    "á": "&aacute;", "à": "&agrave;", "ä": "&auml;",
+    "é": "&eacute;", "è": "&egrave;", "ë": "&euml;",
+    "í": "&iacute;", "ì": "&igrave;", "ï": "&iuml;",
+    "ó": "&oacute;", "ò": "&ograve;", "ö": "&ouml;",
+    "ú": "&uacute;", "ù": "&ugrave;", "ü": "&uuml;",
+    "ñ": "&ntilde;", "ç": "&ccedil;"
+}
+
+def escape_html(t):
+    for k, v in HTML_MAP.items():
+        t = t.replace(k, v)
+    return t
+
+def rgb_hex(rgb):
+    return f"#{rgb[0]:02X}{rgb[1]:02X}{rgb[2]:02X}" if rgb else ""
+
+def is_page_break(p):
+    return any(r._element.xpath(".//w:br[@w:type='page']") for r in p.runs)
+
+# =====================================================
+# PARAGRAPH (RUN-LEVEL)
+# =====================================================
+
+def convert_paragraph(p):
+    html = ""
+    for r in p.runs:
+        if not r.text.strip():
+            continue
+
+        f = r.font
+        txt = escape_html(r.text)
+        close = []
+
+        if f.color and f.color.rgb:
+            html += f'<FONT STYLE="color:{rgb_hex(f.color.rgb)};">'
+            close.append("</FONT>")
+
+        if f.size and f.size.pt not in (10, 12):
+            html += f'<FONT STYLE="font-size:{int(f.size.pt)}pt;">'
+            close.append("</FONT>")
+
+        if f.bold: html += "<b>"; close.append("</b>")
+        if f.italic: html += "<i>"; close.append("</i>")
+        if f.underline: html += "<u>"; close.append("</u>")
+
+        html += txt
+
+        for c in reversed(close):
+            html += c
+
+    return '<P STYLE="margin:0;">&nbsp;</P>' if not html else f'<P STYLE="margin:0;">{html}</P>'
+
+# =====================================================
+# TABLE (COLSPAN + FINANCIAL LOGIC)
+# =====================================================
+
+def is_financial(tbl):
+    text = " ".join(c.text.lower() for r in tbl.rows for c in r.cells)
+    return any(k in text for k in ["$", "revenue", "assets", "liabilities"])
+
+def cell_colspan(cell):
+    tc = cell._tc
+    grid = tc.xpath("./w:tcPr/w:gridSpan")
+    return int(grid[0].get(qn("w:val"))) if grid else 1
+
+def convert_table(tbl):
+    fin = is_financial(tbl)
+    html = '<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;">'
+
+    for r_i, row in enumerate(tbl.rows):
+        html += "<tr>"
+        for c in row.cells:
+            span = cell_colspan(c)
+            cell_html = "".join(convert_paragraph(p) for p in c.paragraphs)
+            tag = "th" if r_i == 0 else "td"
+            border = "border:1pt solid black;" if fin else "border:none;"
+            align = "right" if fin and re.search(r"\d", c.text) else "left"
+
+            html += (
+                f'<{tag} colspan="{span}" '
+                f'style="{border}padding:2pt;text-align:{align};">'
+                f'{cell_html}</{tag}>'
+            )
+        html += "</tr>"
+    html += "</table>"
+    return html
+
+# =====================================================
+# CORE CONVERTER
+# =====================================================
+
+def convert_doc(docx, out_dir):
+    doc = Document(docx)
+    base = os.path.splitext(os.path.basename(docx))[0]
+    html = [
+        '<HTML><HEAD><TITLE></TITLE></HEAD>',
+        '<BODY STYLE="font:10pt Times New Roman, Times, Serif;">'
+    ]
+
+    page = 1
+
+    for el in doc.element.body:
+        if el.tag.endswith("p"):
+            p = doc.paragraphs.pop(0)
+            if is_page_break(p):
+                html.append(
+                    f'<!-- Field: Page; Sequence:{page} -->'
+                    '<DIV STYLE="break-before:page;"></DIV>'
+                    '<!-- Field: /Page -->'
+                )
+                page += 1
+            else:
+                html.append(convert_paragraph(p))
+
+        elif el.tag.endswith("tbl"):
+            tbl = doc.tables.pop(0)
+            html.append(convert_table(tbl))
+
+    html.append("</BODY></HTML>")
+
+    out = os.path.join(out_dir, base + ".htm")
+    with open(out, "w", encoding="utf-8") as f:
+        f.write("\n".join(html))
+
+    print("EDGAR HTML:", out)
+
+# =====================================================
+# BATCH
+# =====================================================
+
+def batch(input_dir, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
+    for f in os.listdir(input_dir):
+        if f.lower().endswith(".docx"):
+            convert_doc(os.path.join(input_dir, f), output_dir)
+
+# =====================================================
+# RUN
+# =====================================================
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print("Usage: python word_to_edgar_enterprise.py <input> <output>")
+        sys.exit(1)
+
+    batch(sys.argv[1], sys.argv[2])
