@@ -1,0 +1,6227 @@
+Option Explicit
+
+Dim totalSteps As Long, curStep As Long
+
+Public colIdx As Long, rowIdx As Long, lastcell As Long
+
+Sub WordToHtml()
+
+    Dim para As Paragraph
+
+    Dim rng As Range
+
+    Dim run As Range
+
+    Dim htmlLine As String
+
+    Dim textPart As String
+
+    Dim fontName As String
+
+    Dim html As String
+
+    Dim pStyle As String
+
+    Dim outFile As String
+
+    Dim fileNum As Integer
+
+    Dim tbl As Object
+
+    Dim selTable As Word.Table
+
+    Dim tableIndex As Long, i As Long
+
+    Dim totalSteps As Long, curStep As Long
+
+    Dim frm As ProgressBarForm
+
+    Dim lastTable As Object
+
+    Set lastTable = Nothing
+
+    Dim symbolMap As Object
+
+   
+
+    Dim fontSizeCurrent As Single, fontSizePrev As Single
+
+    Dim fontColorCurrent As String, fontColorPrev As String
+
+    Dim boldCurrent As Boolean, boldPrev As Boolean
+
+    Dim italicCurrent As Boolean, italicPrev As Boolean
+
+    Dim underlineCurrent As Boolean, underlinePrev As Boolean
+
+    Dim openBold As Boolean, openItalic As Boolean, openUnderline As Boolean, fontcolorOpen As Boolean, fontsizeOpen As Boolean
+
+    Dim inWingdings As Boolean, prevInWingdings As Boolean
+
+    Dim curW As String, valW As String, rightW As String
+
+ 
+
+    'Application.ScreenUpdating = False
+
+   
+
+    Selection.Find.ClearFormatting
+
+    Selection.Find.Replacement.ClearFormatting
+
+'    Selection.Find.replacement.Font.Size = 10
+
+    With Selection.Find
+
+        .Text = "^l"
+
+        .Replacement.Text = "^13"
+
+        .Forward = True
+
+        .Wrap = wdFindContinue
+
+        .Format = True
+
+        .MatchCase = False
+
+        .MatchWholeWord = False
+
+        .MatchWildcards = False
+
+        .MatchSoundsLike = False
+
+        .MatchAllWordForms = False
+
+    End With
+
+    Selection.Find.Execute Replace:=wdReplaceAll
+
+    Selection.Find.ClearFormatting
+
+    Selection.Find.Replacement.ClearFormatting
+
+ 
+
+' Initialize progress bar
+
+'    Set frm = New ProgressBarForm
+
+'    frm.Show vbModeless
+
+'    frm.UpdateProgress 0, "Initializing export..."
+
+  
+
+Application.ScreenUpdating = False
+
+   
+
+    html = ""
+
+    i = 1
+
+           
+
+    Dim prevPage As Long
+
+    Dim currPage As Long
+
+ 
+
+   
+
+    ' ---------------------------------------------------
+
+' IMAGE HANDLING FOR THIS PARAGRAPH (OPTION C LOGIC)
+
+' ---------------------------------------------------
+
+Dim iSh As InlineShape
+
+Dim imgHTML As String
+
+Dim imgCount As Long
+
+Static globalImageCounter As Long
+
+ 
+
+'--- SAFETY CHECKS ---
+
+If Not para Is Nothing Then
+
+    If para.Range Is Nothing Then GoTo SkipImages
+
+    If para.Range.InlineShapes Is Nothing Then GoTo SkipImages
+
+    If para.Range.InlineShapes.count = 0 Then GoTo SkipImages
+
+Else
+
+    GoTo SkipImages
+
+End If
+
+ 
+
+'--- PROCESS IMAGES ---
+
+For Each iSh In para.Range.InlineShapes
+
+    globalImageCounter = globalImageCounter + 1
+
+    imgHTML = imgHTML
+
+    '& SaveImageAndGetHTML(ish)
+
+Next iSh
+
+ 
+
+SkipImages:
+
+ 
+
+ 
+
+   
+
+    ' Handle empty document
+
+    If ActiveDocument.Paragraphs.count = 0 Then Exit Sub
+
+ 
+
+    ' Starting page number
+
+    prevPage = ActiveDocument.Paragraphs(1).Range.Information(wdActiveEndPageNumber)
+
+       
+
+    For Each para In ActiveDocument.Paragraphs
+
+        Set rng = para.Range
+
+        rng.End = rng.End - 1 ' Exclude paragraph mark
+
+        htmlLine = ""
+
+       
+
+'--------------------------------------------
+
+   ' === Handle images in paragraph ===
+
+             
+
+        Dim saveFolder As String, imgIndex As Long
+
+ 
+
+        saveFolder = ActiveDocument.Path   'same folder as HTML
+
+ 
+
+        If para.Range.InlineShapes.count > 0 Or para.Range.ShapeRange.count > 0 Then
+
+           
+
+            para.Range.Select
+
+           
+
+            If para.Range.InlineShapes(1).Type = wdInlineShapePicture Then
+
+           
+
+                
+
+                '---------------------------
+
+               
+
+                Dim origDoc As Document
+
+                Dim fso As Object
+
+                Dim tempHtmlFolder As String, baseName As String
+
+                Dim pageNum As Long, totalPages As Long
+
+                Dim newName As String, curIndex As Long
+
+                Dim lastPage As Long
+
+               
+
+                
+
+                Set origDoc = ActiveDocument
+
+                Set fso = CreateObject("Scripting.FileSystemObject")
+
+           
+
+                imgHTML = "<img src="""
+
+           
+
+                ' folder path
+
+                tempHtmlFolder = origDoc.Path
+
+                baseName = fso.GetBaseName(origDoc.Name)
+
+           
+
+                ' Get total pages
+
+                'totalPages = origDoc.Range.Information(wdNumberOfPagesInDocument)
+
+                totalPages = Selection.Range.Information(wdNumberOfPagesInDocument)
+
+               
+
+            
+
+                ' === GET PAGE NUMBER OF THIS SPECIFIC IMAGE ===
+
+                'pageNum = origDoc.Range.Information(wdActiveEndPageNumber)
+
+                pageNum = Selection.Range.Information(wdActiveEndPageNumber)
+
+               
+
+                ' === INCREMENT IMAGE COUNTER FOR THAT PAGE ===
+
+                 If lastPage = 0 Then lastPage = pageNum
+
+                   
+
+                    If pageNum = lastPage Then
+
+                        curIndex = curIndex + 1
+
+                    Else
+
+                        curIndex = 1
+
+                    End If
+
+ 
+
+                    lastPage = pageNum
+
+                   
+
+                'imgIndex(pageNum) = imgIndex(pageNum) + 1
+
+           
+
+                ' === BUILD ORDERED IMAGE NAME ===
+
+                newName = baseName & "x" & pageNum & "x" & curIndex & ".jpg"
+
+           
+
+                ' Return name
+
+                'GetImageHTML = newName
+
+              
+
+                        
+
+            imgHTML = imgHTML & newName & ">"
+
+           
+
+            
+
+            html = html & "<p style=""margin:0pt; text-align:center;"">" & _
+
+                imgHTML & "</p>" & vbCrLf
+
+            End If
+
+          GoTo NextPara
+
+        End If
+
+ 
+
+           
+
+            ' Insert image paragraph
+
+     
+
+'------------------------------------------
+
+           
+
+    If Not rng.Information(wdWithInTable) Then
+
+       
+
+   
+
+        If Len(para.Range.Text) - 1 <> 0 Then
+
+   
+
+        ' Initialize previous states
+
+        fontSizePrev = -1
+
+        boldPrev = False
+
+        italicPrev = False
+
+        underlinePrev = False
+
+        prevInWingdings = False
+
+        openBold = False
+
+        openItalic = False
+
+        openUnderline = False
+
+        fontColorPrev = ""
+
+        fontcolorOpen = False
+
+        fontsizeOpen = False
+
+       
+
+        For Each run In rng.Words
+
+           textPart = run.Text
+
+           fontName = run.Font.Name
+
+           If Trim(textPart) = "" Then GoTo SkipRun
+
+           Selection.Find.ClearFormatting
+
+           Selection.Find.Replacement.ClearFormatting
+
+          
+
+            ' Replace bullets with Ampersand;
+
+            textPart = Replace(textPart, "&", "&amp;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with lesserthan and greaterthan;
+
+            textPart = Replace(textPart, "<", "&lt;")
+
+            textPart = Replace(textPart, ">", "&gt;")
+
+           
+
+            ' Replace bullets with &bull;
+
+            textPart = Replace(textPart, "•", "&bull;")
+
+            textPart = Replace(textPart, ChrW(&H2022), "&bull;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with endash;
+
+            textPart = Replace(textPart, "–", "&ndash;")
+
+            textPart = Replace(textPart, ChrW(&H2013), "&ndash;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with endash;
+
+            textPart = Replace(textPart, "Chr(180)", "&middot;")
+
+            textPart = Replace(textPart, ChrW(&H2219), "&middot;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with emdash;
+
+            textPart = Replace(textPart, "–", "&mdash;")
+
+            textPart = Replace(textPart, ChrW(&H2014), "&mdash;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with non-breaking space;
+
+            textPart = Replace(textPart, "Chr(160)", "&nbsp;")
+
+            textPart = Replace(textPart, ChrW(&HA0), "&nbsp;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            'numsp
+
+            textPart = Replace(textPart, ChrW(&H2007), "&numsp;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with en space;
+
+            textPart = Replace(textPart, ChrW(&H2002), "&ensp;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with em space;
+
+            textPart = Replace(textPart, ChrW(&H2003), "&ensp;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            
+
+            ' Replace bullets with Apostrophe;
+
+            textPart = Replace(textPart, "'", "&lsquo;")
+
+            textPart = Replace(textPart, ChrW(&H2018), "&lsquo;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with Apostrophe;
+
+            textPart = Replace(textPart, "'", "&rsquo;")
+
+            textPart = Replace(textPart, ChrW(&H2019), "&rsquo;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with Initail Quotes;
+
+            textPart = Replace(textPart, """", "&ldquo;")
+
+            textPart = Replace(textPart, ChrW(&H201C), "&ldquo;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with End Quotes;
+
+            textPart = Replace(textPart, """", "&rdquo;")
+
+            textPart = Replace(textPart, ChrW(&H201D), "&rdquo;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with Section "Symbol (§) ? &sect;"
+
+            textPart = Replace(textPart, """", "&sect;")
+
+            textPart = Replace(textPart, ChrW(&HA7), "&sect;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            textPart = Replace(textPart, "^l", "<br>")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            
+
+            '=== Create symbol mapping dictionary ===
+
+    Set symbolMap = CreateObject("Scripting.Dictionary")
+
+               
+
+            '=======AcuteCharacters============
+
+   
+
+    
+
+            textPart = Replace(textPart, "á", "&aacute;")
+
+            textPart = Replace(textPart, "à", "&agrave;")
+
+            textPart = Replace(textPart, "â", "&acirc;")
+
+            textPart = Replace(textPart, "ä", "&auml;")
+
+            textPart = Replace(textPart, "ã", "&atilde;")
+
+            textPart = Replace(textPart, "å", "&aring;")
+
+            textPart = Replace(textPart, "Á", "&Aacute;")
+
+            textPart = Replace(textPart, "À", "&Agrave;")
+
+            textPart = Replace(textPart, "Â", "&Acirc;")
+
+            textPart = Replace(textPart, "Ä", "&Auml;")
+
+            textPart = Replace(textPart, "Ã", "&Atilde;")
+
+            textPart = Replace(textPart, "Å", "&Aring;")
+
+            textPart = Replace(textPart, "é", "&eacute;")
+
+            textPart = Replace(textPart, "è", "&egrave;")
+
+            textPart = Replace(textPart, "ê", "&ecirc;")
+
+            textPart = Replace(textPart, "ë", "&euml;")
+
+            textPart = Replace(textPart, "É", "&Eacute;")
+
+            textPart = Replace(textPart, "È", "&Egrave;")
+
+            textPart = Replace(textPart, "Ê", "&Ecirc;")
+
+            textPart = Replace(textPart, "Ë", "&Euml;")
+
+            textPart = Replace(textPart, "í", "&iacute;")
+
+            textPart = Replace(textPart, "ì", "&igrave;")
+
+            textPart = Replace(textPart, "î", "&icirc;")
+
+            textPart = Replace(textPart, "ï", "&iuml;")
+
+            textPart = Replace(textPart, "Í", "&Iacute;")
+
+            textPart = Replace(textPart, "Ì", "&Igrave;")
+
+            textPart = Replace(textPart, "Î", "&Icirc;")
+
+            textPart = Replace(textPart, "Ï", "&Iuml;")
+
+            textPart = Replace(textPart, "ó", "&oacute;")
+
+            textPart = Replace(textPart, "ò", "&ograve;")
+
+            textPart = Replace(textPart, "ô", "&ocirc;")
+
+            textPart = Replace(textPart, "ö", "&ouml;")
+
+            textPart = Replace(textPart, "õ", "&otilde;")
+
+            textPart = Replace(textPart, "Ó", "&Oacute;")
+
+            textPart = Replace(textPart, "Ò", "&Ograve;")
+
+            textPart = Replace(textPart, "Ô", "&Ocirc;")
+
+            textPart = Replace(textPart, "Ö", "&Ouml;")
+
+            textPart = Replace(textPart, "Õ", "&Otilde;")
+
+            textPart = Replace(textPart, "ú", "&uacute;")
+
+            textPart = Replace(textPart, "ù", "&ugrave;")
+
+            textPart = Replace(textPart, "û", "&ucirc;")
+
+            textPart = Replace(textPart, "ü", "&uuml;")
+
+            textPart = Replace(textPart, "Ú", "&Uacute;")
+
+            textPart = Replace(textPart, "Ù", "&Ugrave;")
+
+            textPart = Replace(textPart, "Û", "&Ucirc;")
+
+            textPart = Replace(textPart, "Ü", "&Uuml;")
+
+            textPart = Replace(textPart, "ñ", "&ntilde;")
+
+            textPart = Replace(textPart, "Ñ", "&Ntilde;")
+
+            textPart = Replace(textPart, "ç", "&ccedil;")
+
+            textPart = Replace(textPart, "Ç", "&Ccedil;")
+
+            textPart = Replace(textPart, "ý", "&yacute;")
+
+            textPart = Replace(textPart, "ÿ", "&yuml;")
+
+            textPart = Replace(textPart, "Ý", "&Yacute;")
+
+            textPart = Replace(textPart, "œ", "&oelig;")
+
+            textPart = Replace(textPart, "Œ", "&OElig;")
+
+            textPart = Replace(textPart, "ø", "&oslash;")
+
+            textPart = Replace(textPart, "Ø", "&Oslash;")
+
+            textPart = Replace(textPart, "ß", "&szlig;")
+
+            textPart = Replace(textPart, "§", "&sect;")
+
+            textPart = Replace(textPart, "©", "&copy;")
+
+            textPart = Replace(textPart, "®", "&reg;")
+
+            textPart = Replace(textPart, "µ", "&micro;")
+
+           
+
+            ' Check if Wingdings/Webdings
+
+            Dim charNum As Long
+
+           
+
+            If fontName Like "*Wingdings*" Or fontName Like "*Webdings*" Then
+
+                inWingdings = True
+
+                charNum = AscW(run.Text)
+
+                textPart = ReplaceWingdingsSymbol(charNum, fontName)
+
+            ElseIf fontName Like "Arial" Then
+
+                    fontName = "Arial, Helvetica, Sans-Serif"
+
+                Else
+
+                    fontName = "Times New Roman, Times, Serif"
+
+            End If
+
+            'End If
+
+           
+
+            ' Get formatting for non-Wingdings
+
+            If Not inWingdings Then
+
+                With run.Font
+
+                    fontSizeCurrent = .Size
+
+                    boldCurrent = .Bold
+
+                    italicCurrent = .Italic
+
+                    underlineCurrent = (.Underline <> wdUnderlineNone)
+
+                    fontColorCurrent = RGBToHex(.Color)
+
+                End With
+
+               
+
+            Else
+
+               
+
+                fontSizeCurrent = -1
+
+                boldCurrent = False
+
+                italicCurrent = False
+
+                underlineCurrent = False
+
+               
+
+            End If
+
+           
+
+            
+
+            ' Start new font/style if font size font color or Wingdings status changes
+
+            If fontSizeCurrent <> fontSizePrev Or fontColorCurrent <> fontColorPrev Or inWingdings = True Then
+
+            
+
+            'If fontSizeCurrent <> fontSizePrev Or inWingdings <> prevInWingdings Then
+
+                If fontSizeCurrent > 24 Then fontSizeCurrent = fontSizePrev
+
+               
+
+                 ' --- Close previous open tags ---
+
+                If openUnderline Then htmlLine = htmlLine & "</u>": openUnderline = False
+
+                If openItalic Then htmlLine = htmlLine & "</i>": openItalic = False
+
+                If openBold Then htmlLine = htmlLine & "</b>": openBold = False
+
+                If fontSizePrev <> -1 And Not prevInWingdings Then htmlLine = htmlLine & "</FONT>"
+
+                If fontcolorOpen Then htmlLine = htmlLine & "</FONT>": fontcolorOpen = False
+
+                If fontsizeOpen Then htmlLine = htmlLine & "</FONT>": fontsizeOpen = False
+
+               
+
+                ' --- Close previous Wingdings/Webdings tag ---
+
+                With ActiveDocument.Range.Find
+
+                    .Text = ChrW(&H2028)
+
+                    .Replacement.Text = " "
+
+                    .Execute Replace:=wdReplaceAll
+
+                End With
+
+               
+
+                If prevInWingdings Then
+
+                    htmlLine = htmlLine & "</FONT>"
+
+                    prevInWingdings = False
+
+                End If
+
+               
+
+                    If fontColorCurrent <> "" Then
+
+                        htmlLine = htmlLine & "<FONT STYLE=""" & "color:" & fontColorCurrent & ";" & """>"
+
+                        fontcolorOpen = True
+
+                    End If
+
+                   
+
+                    If fontSizeCurrent > 0 And fontSizeCurrent <> 12 Then
+
+                        htmlLine = htmlLine & "<FONT STYLE=""font-size:" & Format(fontSizeCurrent, "0") & "pt"">"
+
+                        fontsizeOpen = True
+
+                    End If
+
+                   
+
+ 
+
+                ' --- Open Wingdings/Webdings font ---
+
+                If inWingdings Then
+
+                    htmlLine = htmlLine & "<FONT STYLE=""font-family:" & fontName & ";"">"
+
+                    prevInWingdings = True
+
+                Else
+
+                    prevInWingdings = False
+
+                End If
+
+               
+
+                
+
+                
+
+                ' Reset previous formatting
+
+                boldPrev = False
+
+                italicPrev = False
+
+                underlinePrev = False
+
+                inWingdings = False
+
+            End If
+
+           
+
+            ' Handle consecutive Bold
+
+            If boldCurrent <> boldPrev And Not inWingdings Then
+
+                If boldCurrent Then htmlLine = htmlLine & "<b>": openBold = True
+
+                If Not boldCurrent And openBold Then htmlLine = htmlLine & "</b>": openBold = False
+
+            End If
+
+           
+
+            ' Handle consecutive Italic
+
+            If italicCurrent <> italicPrev And Not inWingdings Then
+
+                If italicCurrent Then htmlLine = htmlLine & "<i>": openItalic = True
+
+                If Not italicCurrent And openItalic Then htmlLine = htmlLine & "</i>": openItalic = False
+
+            End If
+
+           
+
+            ' Handle consecutive Underline
+
+            If underlineCurrent <> underlinePrev And Not inWingdings Then
+
+                If underlineCurrent Then htmlLine = htmlLine & "<u>": openUnderline = True
+
+                If Not underlineCurrent And openUnderline Then htmlLine = htmlLine & "</u>": openUnderline = False
+
+            End If
+
+           
+
+            ' Append text
+
+           
+
+            htmlLine = htmlLine & textPart
+
+                
+
+            ' Update previous states
+
+            fontSizePrev = fontSizeCurrent
+
+            boldPrev = boldCurrent
+
+            italicPrev = italicCurrent
+
+            underlinePrev = underlineCurrent
+
+            'prevInWingdings = inWingdings
+
+            fontColorPrev = fontColorCurrent
+
+   
+
+            '=================================
+
+SkipRun:
+
+        Next run
+
+       
+
+        ' Close remaining tags
+
+        If openUnderline Then htmlLine = htmlLine & "</u>"
+
+        If openItalic Then htmlLine = htmlLine & "</i>"
+
+        If openBold Then htmlLine = htmlLine & "</b>"
+
+        If fontsizeOpen Then htmlLine = htmlLine & "</FONT>"
+
+        If fontcolorOpen Then htmlLine = htmlLine
+
+        '& "</FONT>"
+
+        If fontSizePrev <> -1 And fontSizeCurrent > 12 And Not prevInWingdings Then htmlLine = htmlLine & "</FONT>"
+
+        If prevInWingdings Then htmlLine = htmlLine & "</FONT>"
+
+    End If
+
+  
+
+    
+
+    
+
+    '=======HTML============
+
+         
+
+            ' --- Normal paragraph ---
+
+            If Trim(htmlLine) = "&nbsp;" Or Trim(htmlLine) = "" Then
+
+                ' Empty paragraph
+
+                pStyle = "margin:0;"
+
+                html = html & "<P STYLE=""" & pStyle & """>&nbsp;</P>" & vbCrLf & vbCrLf
+
+            Else
+
+                ' --- Non-empty paragraph ---
+
+                'Dim fontName As String
+
+                fontName = para.Range.Font.Name
+
+               
+
+                Dim fontColor As String
+
+                fontColor = RGBToHex(para.Range.Font.Color)
+
+                para.Range.Font.Size = 12
+
+ 
+
+                ' --- Paragraph style ---
+
+                '"color:" & fontColor & ";" &
+
+                If fontName = "Times New Roman" Then
+
+                   
+
+                        pStyle = "font:" & para.Range.Font.Size & "pt " & _
+
+                                "Times New Roman, Times, Serif;" & _
+
+                                "text-align:" & GetAlignment(para) & ";" & _
+
+                                "margin:" & _
+
+                                   SafeMarginValue(para.SpaceBefore) & " " & _
+
+                                   SafeMarginValue(para.RightIndent) & " " & _
+
+                                   SafeMarginValue(para.SpaceAfter) & " " & _
+
+                                   SafeMarginValue(para.LeftIndent) & ";" & _
+
+                                "text-indent:" & SafeMarginValue(para.FirstLineIndent) & ";"
+
+ 
+
+                Else
+
+                    'pStyle = "font:" & para.Range.Font.Size & "pt " & fontName & ", Helvetica, Sans-Serif;" &
+
+                     pStyle = "font:" & para.Range.Font.Size & "pt " & "Arial, Helvetica, Sans-Serif;" & _
+
+                             "text-align:" & GetAlignment(para) & ";" & _
+
+                              "margin:" & _
+
+                                   SafeMarginValue(para.SpaceBefore) & " " & _
+
+                                   SafeMarginValue(para.RightIndent) & " " & _
+
+                                   SafeMarginValue(para.SpaceAfter) & " " & _
+
+                                   SafeMarginValue(para.LeftIndent) & ";" & _
+
+                                "text-indent:" & SafeMarginValue(para.FirstLineIndent) & ";"
+
+                End If
+
+               
+
+                html = html & "<P STYLE=""" & pStyle & """>" & htmlLine & "</P>" & vbCrLf & vbCrLf
+
+            End If
+
+       
+
+        Else
+
+         
+
+          ' Image tag
+
+                     
+
+          If rng <> "" Then
+
+         
+
+            ' Paragraph is inside a table: convert the table once and skip subsequent paragraphs inside same table
+
+            
+
+           tableIndex = ActiveDocument.Range(0, rng.End).Tables.count
+
+ 
+
+            ' --- Convert each table only once ---
+
+            If tableIndex = i Then
+
+           
+
+            '--------------------
+
+                Dim isFinancial As Boolean
+
+                Dim pStyle1 As String
+
+               
+
+                pStyle1 = "font:" & 10 & "pt " & "Arial, Helvetica, Sans-Serif;" & _
+
+                             "text-align:" & GetAlignment(para) & ";" & "margin-top: 0pt; margin-bottom: 0pt;"
+
+                            
+
+                
+
+                pStyle1 = "<P STYLE=""" & pStyle1 & """>"
+
+               
+
+                Set tbl = rng.Tables(1)
+
+                tbl.Range.Select
+
+                Selection.Tables(1).rows.WrapAroundText = False
+
+                isFinancial = IsFinancialTable(tbl)
+
+               
+
+                If isFinancial Then
+
+               
+
+                html = html & ConvertWordTableToHTML(ActiveDocument.Tables(tableIndex)) & vbCrLf
+
+                i = i + 1 ' Increment counter after processing this table
+
+               
+
+                Else
+
+               
+
+                html = html & ConvertWordTableToHTML_TEXT(ActiveDocument.Tables(tableIndex)) & vbCrLf
+
+                i = i + 1 ' Increment counter after processing this table
+
+                End If
+
+               
+
+                If Selection.InlineShapes.count > 0 Then
+
+                    html = html & "<P STYLE=""" & pStyle & """>" & imgHTML & htmlLine & "</P>" & vbCrLf & vbCrLf
+
+                End If
+
+               
+
+            End If
+
+        End If
+
+End If
+
+ 
+
+ 
+
+ 
+
+NextPara:
+
+   
+
+If Not para.Range.Information(wdWithInTable) Then
+
+ 
+
+    currPage = para.Range.Information(wdActiveEndPageNumber)
+
+ 
+
+    If currPage <> prevPage Then
+
+ 
+
+        If prevPage <> 0 Then
+
+            html = html & _
+
+                "<!-- Field: Page; Sequence:" & prevPage & "-->" & vbCrLf & _
+
+                "<DIV STYLE=""border-bottom: Black 1pt solid; margin-top: 6pt; margin-bottom: 6pt"">" & pStyle1 & "&nbsp;" & "</p></DIV>" & vbCrLf & _
+
+                "<DIV STYLE=""break-before: page; margin-top: 6pt; margin-bottom: 6pt"">" & pStyle1 & "&nbsp;" & "</p>" & "</DIV>" & vbCrLf & _
+
+                "<!-- Field: /Page -->" & vbCrLf & vbCrLf
+
+        End If
+
+ 
+
+        prevPage = currPage
+
+ 
+
+    End If
+
+ 
+
+End If
+
+   
+
+    Next para
+
+ 
+
+ 
+
+    ' --- Wrap complete HTML ---
+
+    html = "<HTML><HEAD><TITLE></TITLE></HEAD>" & _
+
+           "<BODY STYLE=""font:10pt Times New Roman, Times, Serif;"">" & vbCrLf & _
+
+           html & "</BODY></HTML>"
+
+ 
+
+ 
+
+    outFile = ActiveDocument.Path & "\" & Left(ActiveDocument.Name, InStrRev(ActiveDocument.Name, ".") - 1) & ".htm"
+
+    fileNum = FreeFile
+
+    Open outFile For Output As #fileNum
+
+    Print #fileNum, html
+
+    Close #fileNum
+
+ 
+
+'frm.UpdateProgress 100, "Export complete!"
+
+    Dim t As Single
+
+        t = Timer
+
+    Do While Timer < t + 1
+
+        DoEvents
+
+    Loop
+
+'frm.CloseProgress
+
+    Set frm = Nothing
+
+    Application.ScreenUpdating = True
+
+    MsgBox "HTML exported to " & outFile, vbInformation
+
+    '=======================
+
+   
+
+    Application.DisplayAlerts = wdAlertsNone
+
+ 
+
+    ' Close the current document without saving
+
+    ActiveDocument.Close SaveChanges:=False
+
+ 
+
+    ' Restore alerts
+
+    Application.DisplayAlerts = wdAlertsAll
+
+ 
+
+    ' Open the HTML file
+
+     Dim chromePath As String
+
+    ' Default Chrome installation path
+
+    chromePath = """C:\Program Files\Google\Chrome\Application\chrome.exe"""
+
+ 
+
+    ' Use Shell to open Chrome with the HTML file
+
+    Shell chromePath & " """ & outFile & """", vbNormalFocus
+
+   
+
+    
+
+End Sub
+
+ 
+
+Function ConvertWordTableToHTML(tbl As Object) As String
+
+'    Dim tbl As object
+
+    Dim run1 As Range
+
+    Dim t As String
+
+    Dim fontSizeCurrent As Single, fontSizePrev As Single
+
+    Dim fontColorCurrent As String, fontColorPrev As String
+
+    Dim boldCurrent As Boolean, boldPrev As Boolean
+
+    Dim italicCurrent As Boolean, italicPrev As Boolean
+
+    Dim underlineCurrent As Boolean, underlinePrev As Boolean
+
+    Dim openBold As Boolean, openItalic As Boolean, openUnderline As Boolean, fontcolorOpen As Boolean, fontsizeOpen As Boolean
+
+    Dim inWingdings As Boolean, prevInWingdings As Boolean
+
+    Dim row As row, cel As Cell
+
+    Dim colIdx As Long, rowIdx As Long
+
+    Dim colmspan As String
+
+   
+
+    Dim fontName As String
+
+    Dim htmlLine As String
+
+    Dim tableIndex As Long
+
+   
+
+    Dim widthPercent As Double
+
+    Dim pageWidth As Double
+
+    Dim marginWidth As Double
+
+    Dim usableWidth As Double
+
+   
+
+    Dim Left_indent As String
+
+    Dim Right_indent As String
+
+    Dim Top_indent As String
+
+    Dim Bottom_indent As String
+
+    Dim hangingIndent As String
+
+   
+
+    Dim html As String
+
+    Dim htmltbl As String
+
+    Dim cellText As String
+
+    Dim fontFamily As String
+
+    Dim fontSize As String
+
+    Dim bgColor As String
+
+    Dim borderBottom As String
+
+    Dim alignText As String
+
+    Dim AlgnWidth As String
+
+    Dim tble As Word.Table
+
+    Dim tWidth As Single, rHeight As Single, cWidth As Single
+
+    Dim i As Long
+
+    Dim n As Long
+
+   
+
+    Dim colCount As Long
+
+    Dim colIndex As Integer
+
+   
+
+    Dim col As Column, dict As Object
+
+    Dim tblPercent  As Double, colPercent As Double
+
+    Dim msg1 As String
+
+    Dim msg As String
+
+    Dim a As Long
+
+    Dim Header As Long
+
+    Dim beforeTag As String
+
+    Dim outTag As String
+
+   
+
+    Call ConvertSpaceIndent(tbl)
+
+    Call Insert_nbsp_to_Emptycell(tbl)
+
+   
+
+    
+
+    'For Each Tbl In ActiveDocument.Tables
+
+    Set tble = ActiveDocument.Tables(1)
+
+   
+
+    tableIndex = ActiveDocument.Range(0, tble.Range.End).Tables.count
+
+   
+
+    
+
+    'Set tble = ActiveDocument.Tables(tableIndex)
+
+       
+
+    pageWidth = ActiveDocument.PageSetup.pageWidth
+
+    marginWidth = ActiveDocument.PageSetup.LeftMargin + ActiveDocument.PageSetup.RightMargin
+
+    usableWidth = pageWidth - marginWidth
+
+   
+
+    widthPercent = (tbl.Range.Information(wdHorizontalPositionRelativeToPage) / usableWidth) * 100
+
+    'tWidth = Round(widthPercent)
+
+   
+
+    Dim intPart As Long
+
+    Dim fracPart As Double
+
+ 
+
+    intPart = Fix(widthPercent)
+
+    fracPart = widthPercent - intPart
+
+ 
+
+    If fracPart < 0.5 Then
+
+        tWidth = intPart
+
+    Else
+
+        tWidth = intPart + 0.5
+
+    End If
+
+ 
+
+    tWidth = 100 - ((tWidth - 15) * 2)
+
+'
+
+   
+
+    'If ActiveDocument.Tables(tableIndex).rows.Alignment = wdAlignRowLeft Then
+
+    '    AlgnWidth = "LEFT"
+
+    If ActiveDocument.Tables(tableIndex).rows.Alignment = wdAlignRowCenter Then
+
+        AlgnWidth = "CENTER"
+
+    ElseIf ActiveDocument.Tables(tableIndex).rows.Alignment = wdAlignRowRight Then
+
+        AlgnWidth = "RIGHT"
+
+    End If
+
+   
+
+    
+
+        '--- Create array for column percentages ---
+
+        colCount = tbl.Columns.count
+
+        ReDim colPercents(1 To colCount)
+
+       
+
+        For colIdx = 1 To colCount
+
+        On Error Resume Next
+
+       
+
+            If tbl.Columns(colIdx).PreferredWidthType <> wdPreferredWidthPercent Then
+
+               colPercents(colIdx) = ((tbl.rows(1).Cells(colIdx).width / 72) / 7.5) * 100
+
+            ElseIf tbl.Columns(colIdx).PreferredWidthType = wdPreferredWidthPercent Then
+
+                colPercents(colIdx) = tbl.Columns(colIdx).PreferredWidth
+
+            ElseIf tbl.PreferredWidthType = wdPreferredWidthPercent Then
+
+                colPercents(colIdx) = (tbl.Columns(colIdx).width / (tbl.PreferredWidth / 100))
+
+            Else
+
+                colPercents(colIdx) = 0
+
+            End If
+
+        Next colIdx
+
+       
+
+        If tWidth > 100 Then
+
+            tWidth = 100
+
+        End If
+
+       
+
+        tbl.rows.WrapAroundText = False
+
+       
+
+        '--- Start HTML table ---
+
+       
+
+        
+
+    htmltbl = "<table cellspacing=""0"" cellpadding=""0"" & "" & STYLE=" & """width:" & Format(tWidth, "0") & "%;" & " border-collapse: collapse"">" & vbCrLf
+
+    'htmltbl = htmltbl & "  <tbody>" & vbCrLf
+
+       
+
+        Selection.Tables(1).rows.WrapAroundText = False
+
+       
+
+        ' --- Get Table Width in Percentage ---
+
+    If tbl.PreferredWidthType = wdPreferredWidthPercent Then
+
+        tblPercent = tbl.PreferredWidth
+
+        msg1 = Format(tblPercent, "0")
+
+    Else
+
+        msg1 = Format(tbl.PreferredWidth, "0")
+
+    End If
+
+   
+
+    Dim rng As Range
+
+   
+
+    
+
+    Set tbl = rng.Tables(1)
+
+    tbl.Range.Select
+
+   
+
+    '---------------------------------------------
+
+   
+
+'        Header = InputBox("Enter Number of Caption")
+
+        Header = DetectHeaderRows(tbl)
+
+       
+
+    
+
+        For Each row In tbl.rows
+
+               
+
+            ' Check for row shading
+
+           
+
+            If row.Shading.BackgroundPatternColor <> wdColorAutomatic Then
+
+                bgColor = "; background-color:" & ColorToHex(row.Shading.BackgroundPatternColor)
+
+            Else
+
+                bgColor = ""
+
+            End If
+
+ 
+
+            htmltbl = htmltbl & "<tr style=""vertical-align: bottom" & bgColor & """>" & vbCrLf
+
+     
+
+            colIndex = 0
+
+           
+
+           For Each cel In row.Cells
+
+           
+
+            Dim lastcell As Long
+
+            colIdx = cel.ColumnIndex
+
+            rowIdx = cel.RowIndex
+
+            lastcell = row.Cells.count
+
+           
+
+            htmlLine = ""
+
+           
+
+             ' Get cell text
+
+                cellText = cel.Range.Text
+
+                'cellText = Replace(cellText, Chr(13), "<br>")
+
+                cellText = Replace(cellText, Chr(7), "")
+
+                cellText = Trim(cellText)
+
+               
+
+                'Header_Row = InputBox("Enter Number of Header")
+
+               
+
+                If cellText = "" Then cellText = "&nbsp;"
+
+                          
+
+                If Len(cellText) - 1 <> 0 Then
+
+        ' Initialize previous states
+
+        fontSizePrev = -1
+
+        boldPrev = False
+
+        italicPrev = False
+
+        underlinePrev = False
+
+        prevInWingdings = False
+
+        openBold = False
+
+        openItalic = False
+
+        openUnderline = False
+
+        fontColorPrev = ""
+
+        fontcolorOpen = False
+
+        fontsizeOpen = False
+
+       
+
+        'For Each run1 In cel.Range.Words
+
+        For Each run1 In cel.Range.Characters
+
+       
+
+           cellText = run1.Text
+
+           cellText = Replace(cellText, Chr(7), "")
+
+           fontName = run1.Font.Name
+
+           If Trim(cellText) = "" And cellText = Chr(7) Then GoTo SkipRun
+
+           Selection.Find.ClearFormatting
+
+           Selection.Find.Replacement.ClearFormatting
+
+          
+
+            ' Replace bullets with Ampersand;
+
+            cellText = Replace(cellText, "&", "&amp;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with lesserthan and greaterthan;
+
+            cellText = Replace(cellText, "<", "&lt;")
+
+            cellText = Replace(cellText, ">", "&gt;")
+
+           
+
+            ' Replace bullets with &bull;
+
+            cellText = Replace(cellText, "•", "&bull;")
+
+            cellText = Replace(cellText, ChrW(&H2022), "&bull;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with endash;
+
+            cellText = Replace(cellText, "–", "&ndash;")
+
+            cellText = Replace(cellText, ChrW(&H2013), "&ndash;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with endash;
+
+            cellText = Replace(cellText, "Chr(180)", "&middot;")
+
+            cellText = Replace(cellText, ChrW(&H2219), "&middot;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with emdash;
+
+            cellText = Replace(cellText, "–", "&mdash;")
+
+            cellText = Replace(cellText, ChrW(&H2014), "&mdash;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with non-breaking space;
+
+            cellText = Replace(cellText, "Chr(160)", "&nbsp;")
+
+            cellText = Replace(cellText, ChrW(&HA0), "&nbsp;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            'numsp
+
+            cellText = Replace(cellText, ChrW(&H2007), "&numsp;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with en space;
+
+            cellText = Replace(cellText, ChrW(&H2002), "&ensp;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with em space;
+
+            cellText = Replace(cellText, ChrW(&H2003), "&ensp;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            
+
+            ' Replace bullets with Apostrophe;
+
+            cellText = Replace(cellText, "'", "&lsquo;")
+
+            cellText = Replace(cellText, ChrW(&H2018), "&lsquo;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with Apostrophe;
+
+            cellText = Replace(cellText, "'", "&rsquo;")
+
+            cellText = Replace(cellText, ChrW(&H2019), "&rsquo;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with Initail Quotes;
+
+            cellText = Replace(cellText, """", "&ldquo;")
+
+            cellText = Replace(cellText, ChrW(&H201C), "&ldquo;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with End Quotes;
+
+            cellText = Replace(cellText, """", "&rdquo;")
+
+            cellText = Replace(cellText, ChrW(&H201D), "&rdquo;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with Section "Symbol (§) ? &sect;"
+
+            cellText = Replace(cellText, """", "&sect;")
+
+            cellText = Replace(cellText, ChrW(&HA7), "&sect;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            'cellText = Replace(cellText, Chr(11), "<br>")
+
+                       
+
+            '=======AcuteCharacters============
+
+   
+
+    
+
+            cellText = Replace(cellText, "á", "&aacute;")
+
+            cellText = Replace(cellText, "à", "&agrave;")
+
+            cellText = Replace(cellText, "â", "&acirc;")
+
+            cellText = Replace(cellText, "ä", "&auml;")
+
+            cellText = Replace(cellText, "ã", "&atilde;")
+
+            cellText = Replace(cellText, "å", "&aring;")
+
+            cellText = Replace(cellText, "Á", "&Aacute;")
+
+            cellText = Replace(cellText, "À", "&Agrave;")
+
+            cellText = Replace(cellText, "Â", "&Acirc;")
+
+            cellText = Replace(cellText, "Ä", "&Auml;")
+
+            cellText = Replace(cellText, "Ã", "&Atilde;")
+
+            cellText = Replace(cellText, "Å", "&Aring;")
+
+            cellText = Replace(cellText, "é", "&eacute;")
+
+            cellText = Replace(cellText, "è", "&egrave;")
+
+            cellText = Replace(cellText, "ê", "&ecirc;")
+
+            cellText = Replace(cellText, "ë", "&euml;")
+
+            cellText = Replace(cellText, "É", "&Eacute;")
+
+            cellText = Replace(cellText, "È", "&Egrave;")
+
+            cellText = Replace(cellText, "Ê", "&Ecirc;")
+
+            cellText = Replace(cellText, "Ë", "&Euml;")
+
+            cellText = Replace(cellText, "í", "&iacute;")
+
+            cellText = Replace(cellText, "ì", "&igrave;")
+
+            cellText = Replace(cellText, "î", "&icirc;")
+
+            cellText = Replace(cellText, "ï", "&iuml;")
+
+            cellText = Replace(cellText, "Í", "&Iacute;")
+
+            cellText = Replace(cellText, "Ì", "&Igrave;")
+
+            cellText = Replace(cellText, "Î", "&Icirc;")
+
+            cellText = Replace(cellText, "Ï", "&Iuml;")
+
+            cellText = Replace(cellText, "ó", "&oacute;")
+
+            cellText = Replace(cellText, "ò", "&ograve;")
+
+            cellText = Replace(cellText, "ô", "&ocirc;")
+
+            cellText = Replace(cellText, "ö", "&ouml;")
+
+            cellText = Replace(cellText, "õ", "&otilde;")
+
+            cellText = Replace(cellText, "Ó", "&Oacute;")
+
+            cellText = Replace(cellText, "Ò", "&Ograve;")
+
+            cellText = Replace(cellText, "Ô", "&Ocirc;")
+
+            cellText = Replace(cellText, "Ö", "&Ouml;")
+
+            cellText = Replace(cellText, "Õ", "&Otilde;")
+
+            cellText = Replace(cellText, "ú", "&uacute;")
+
+            cellText = Replace(cellText, "ù", "&ugrave;")
+
+            cellText = Replace(cellText, "û", "&ucirc;")
+
+            cellText = Replace(cellText, "ü", "&uuml;")
+
+            cellText = Replace(cellText, "Ú", "&Uacute;")
+
+            cellText = Replace(cellText, "Ù", "&Ugrave;")
+
+            cellText = Replace(cellText, "Û", "&Ucirc;")
+
+            cellText = Replace(cellText, "Ü", "&Uuml;")
+
+            cellText = Replace(cellText, "ñ", "&ntilde;")
+
+            cellText = Replace(cellText, "Ñ", "&Ntilde;")
+
+            cellText = Replace(cellText, "ç", "&ccedil;")
+
+            cellText = Replace(cellText, "Ç", "&Ccedil;")
+
+            cellText = Replace(cellText, "ý", "&yacute;")
+
+            cellText = Replace(cellText, "ÿ", "&yuml;")
+
+            cellText = Replace(cellText, "Ý", "&Yacute;")
+
+            cellText = Replace(cellText, "œ", "&oelig;")
+
+            cellText = Replace(cellText, "Œ", "&OElig;")
+
+            cellText = Replace(cellText, "ø", "&oslash;")
+
+            cellText = Replace(cellText, "Ø", "&Oslash;")
+
+            cellText = Replace(cellText, "ß", "&szlig;")
+
+            cellText = Replace(cellText, "§", "&sect;")
+
+            cellText = Replace(cellText, "©", "&copy;")
+
+            cellText = Replace(cellText, "®", "&reg;")
+
+            cellText = Replace(cellText, "µ", "&micro;")
+
+           
+
+            ' Check if Wingdings/Webdings
+
+'            If fontName Like "*Wingdings*" Or fontName Like "*Webdings*" Then
+
+'                inWingdings = True
+
+'               cellText = GetSymbol(cellText)
+
+'                inWingdings = False
+
+'            End If
+
+ 
+
+            Dim charNum As Long
+
+            If fontName Like "*Wingdings*" Or fontName Like "*Webdings*" Then
+
+                inWingdings = True
+
+                charNum = AscW(run1.Text)
+
+                cellText = ReplaceWingdingsSymbol(charNum, fontName)
+
+            ElseIf fontName Like "Arial" Then
+
+                    fontName = "Arial, Helvetica, Sans-Serif;"
+
+                Else
+
+                    fontName = "Times New Roman, Times, Serif;"
+
+            End If
+
+ 
+
+           
+
+            ' Get formatting for non-Wingdings
+
+            If Not inWingdings Then
+
+                With run1.Font
+
+                    fontSizeCurrent = .Size
+
+                    boldCurrent = .Bold
+
+                    italicCurrent = .Italic
+
+                    underlineCurrent = (.Underline <> wdUnderlineNone)
+
+                    fontColorCurrent = RGBToHex(.Color)
+
+                End With
+
+            Else
+
+                fontSizeCurrent = -1
+
+                boldCurrent = False
+
+                italicCurrent = False
+
+                underlineCurrent = False
+
+            End If
+
+           
+
+                   
+
+            ' Start new font/style if font size font color or Wingdings status changes
+
+            If fontSizeCurrent <> fontSizePrev Or fontColorCurrent <> fontColorPrev Or inWingdings = True Then
+
+            
+
+            'If fontSizeCurrent <> fontSizePrev Or inWingdings <> prevInWingdings Then
+
+                If fontSizeCurrent > 24 Then fontSizeCurrent = fontSizePrev
+
+               
+
+                 ' --- Close previous open tags ---
+
+                If openUnderline Then htmlLine = htmlLine & "</u>": openUnderline = False
+
+                If openItalic Then htmlLine = htmlLine & "</i>": openItalic = False
+
+                If openBold Then htmlLine = htmlLine & "</b>": openBold = False
+
+                If fontSizePrev <> -1 And Not prevInWingdings Then htmlLine = htmlLine
+
+                If fontcolorOpen Then htmlLine = htmlLine:  fontcolorOpen = False
+
+                If fontsizeOpen Then htmlLine = htmlLine: fontsizeOpen = False
+
+               
+
+                ' --- Close previous Wingdings/Webdings tag ---
+
+                If prevInWingdings Then
+
+                    htmlLine = htmlLine & "</FONT>"
+
+                    prevInWingdings = False
+
+                End If
+
+               
+
+                    If fontColorCurrent <> "" Then
+
+                        htmlLine = htmlLine & "<FONT STYLE=""" & "color:" & fontColorCurrent & ";" & """>"
+
+                        fontcolorOpen = True
+
+                    End If
+
+                   
+
+                    If fontSizeCurrent > 0 And fontSizeCurrent <> 12 And fontSizeCurrent <> 10 Then
+
+                        htmlLine = htmlLine & "<FONT STYLE=""font-size:" & Format(fontSizeCurrent, "0") & "pt"">"
+
+                        fontsizeOpen = True
+
+                    End If
+
+                   
+
+ 
+
+                ' --- Open Wingdings/Webdings font ---
+
+                If inWingdings Then
+
+                    htmlLine = htmlLine & "<FONT STYLE=""font-family:" & fontName & ";"">"
+
+                    prevInWingdings = True
+
+                Else
+
+                    prevInWingdings = False
+
+                End If
+
+               
+
+                ' Reset previous formatting
+
+                boldPrev = False
+
+                italicPrev = False
+
+                underlinePrev = False
+
+                inWingdings = False
+
+            End If
+
+           
+
+            ' Handle consecutive Bold
+
+            If boldCurrent <> boldPrev And Not inWingdings Then
+
+                If boldCurrent Then htmlLine = htmlLine & "<b>": openBold = True
+
+                If Not boldCurrent And openBold Then htmlLine = htmlLine & "</b>": openBold = False
+
+            End If
+
+           
+
+            ' Handle consecutive Italic
+
+            If italicCurrent <> italicPrev And Not inWingdings Then
+
+                If italicCurrent Then htmlLine = htmlLine & "<i>": openItalic = True
+
+                If Not italicCurrent And openItalic Then htmlLine = htmlLine & "</i>": openItalic = False
+
+            End If
+
+           
+
+            ' Handle consecutive Underline
+
+            If underlineCurrent <> underlinePrev And Not inWingdings Then
+
+                If underlineCurrent Then htmlLine = htmlLine & "<u>": openUnderline = True
+
+                If Not underlineCurrent And openUnderline Then htmlLine = htmlLine & "</u>": openUnderline = False
+
+            End If
+
+           
+
+            ' Append text
+
+           
+
+            htmlLine = htmlLine & cellText
+
+                
+
+            ' Update previous states
+
+            fontSizePrev = fontSizeCurrent
+
+            boldPrev = boldCurrent
+
+            italicPrev = italicCurrent
+
+            underlinePrev = underlineCurrent
+
+            'prevInWingdings = inWingdings
+
+            fontColorPrev = fontColorCurrent
+
+   
+
+            '=================================
+
+                      
+
+SkipRun:
+
+        Next run1
+
+       
+
+        ' Close remaining tags
+
+        If openUnderline Then htmlLine = htmlLine & "</u>"
+
+        If openItalic Then htmlLine = htmlLine & "</i>"
+
+        If openBold Then htmlLine = htmlLine & "</b>"
+
+        If fontsizeOpen Then htmlLine = htmlLine & "</FONT>"
+
+        If fontcolorOpen Then htmlLine = htmlLine
+
+        ' & "</FONT>"
+
+        If fontSizePrev <> -1 And fontSizeCurrent > 12 And Not prevInWingdings Then htmlLine = htmlLine & "</FONT>"
+
+        If prevInWingdings Then htmlLine = htmlLine & "</FONT>"
+
+       
+
+    End If
+
+               
+
+                
+
+                Selection.Find.Replacement.ClearFormatting
+
+                ' Determine text alignment
+
+                Select Case cel.Range.ParagraphFormat.Alignment
+
+                    Case wdAlignParagraphLeft
+
+                        alignText = "Left"
+
+                    Case wdAlignParagraphRight
+
+                        alignText = "right"
+
+                    Case wdAlignParagraphCenter
+
+                        alignText = "center"
+
+                    'Case Else
+
+                     '   alignText = "justify"
+
+                End Select
+
+               
+
+                '-------Cell pading-----------
+
+                Left_indent = cel.Range.ParagraphFormat.LeftIndent & "pt"
+
+                hangingIndent = cel.Range.ParagraphFormat.FirstLineIndent & "pt"
+
+                Right_indent = cel.Range.ParagraphFormat.RightIndent & "pt"
+
+                Top_indent = cel.Range.ParagraphFormat.SpaceAfter & "pt"
+
+                Bottom_indent = cel.Range.ParagraphFormat.SpaceBefore & "pt"
+
+               
+
+                ' Detect font
+
+                If cel.Range.Font.Name = "Arial" Then
+
+                    fontFamily = "Arial, Helvetica, Sans-Serif"
+
+                Else
+
+                    fontFamily = "Times New Roman, Times, Serif"
+
+                End If
+
+               
+
+                If cel.Range.Font.Size >= 999999 Then
+
+                    fontSize = 10 & "pt"
+
+                    Else
+
+                    fontSize = cel.Range.Font.Size & "pt"
+
+                End If
+
+               
+
+                ' Border bottom
+
+                Dim borderStyle As String
+
+                Dim clr As String
+
+ 
+
+                'Set cel = Selection.Cells(1)
+
+                borderStyle = ""
+
+               
+
+                '--- Top Border ---
+
+                borderStyle = GetCellBorderStyle(cel)
+
+               
+
+                ' Build htmltbl cell
+
+               
+
+                    
+
+                    Dim fName As String, fSize As String, colSpanCount As Long
+
+                   
+
+                    
+
+                    
+
+                    If rowIdx <= Header Then
+
+                   
+
+                    Selection.Tables(1).Cell(rowIdx, colIdx).Select
+
+                    Selection.MoveLeft 1
+
+                    Selection.EndKey unit:=wdColumn, Extend:=True
+
+                    colSpanCount = Selection.Columns.count
+
+                    Selection.MoveLeft 1
+
+                   
+
+                    If colIdx = 1 And colSpanCount > 1 Then
+
+                       
+
+                        htmltbl = htmltbl & "<td colspan=""" & (colSpanCount * 3) & """ style=""" & "Font-size=" & fontSize & ";" & "font-family:" & fontFamily & "; vertical-align:bottom; text-align:" & alignText & "; padding-left:" & Left_indent & "; text-indent:" & hangingIndent & "; padding-top:" & Top_indent & "; padding-bottom:" & Bottom_indent & "; padding-right:" & Right_indent & ";" & borderStyle & """>" & htmlLine & "</td>" & vbCrLf & vbCrLf & "<td style=""" & "Font-size=" & fontSize & ";" & "font-family:" & fontFamily & ";" & borderStyle & """>" & "&nbsp;" & "</td>" & vbCrLf & vbCrLf
+
+                       
+
+                    ElseIf colIdx = 1 Then
+
+                   
+
+                        htmltbl = htmltbl & "<td" & " style=""" & "Font-size=" & fontSize & ";" & "font-family:" & fontFamily & "; vertical-align:bottom; text-align:" & alignText & "; padding-left:" & Left_indent & "; text-indent:" & hangingIndent & "; padding-top:" & Top_indent & "; padding-bottom:" & Bottom_indent & "; padding-right:" & Right_indent & ";" & borderStyle & """>" & htmlLine & "</td>" & vbCrLf & vbCrLf & "<td style=""" & "Font-size=" & fontSize & ";" & "font-family:" & fontFamily & ";" & borderStyle & """>" & "&nbsp;" & "</td>" & vbCrLf & vbCrLf
+
+                                                               
+
+                    ElseIf colIdx = lastcell And colSpanCount = 1 Then
+
+                   
+
+                        htmltbl = htmltbl & "<td colspan=""" & (colSpanCount * 2) & """ style=""" & "Font-size=" & fontSize & ";" & "font-family:" & fontFamily & "; vertical-align:bottom; text-align:" & alignText & "; padding-left:" & Left_indent & "; text-indent:" & hangingIndent & "; padding-top:" & Top_indent & "; padding-bottom:" & Bottom_indent & "; padding-right:" & Right_indent & ";" & borderStyle & """>" & htmlLine & "</td>" & vbCrLf & vbCrLf & "<td style=""" & "Font-size=" & fontSize & ";" & "font-family:" & fontFamily & ";" & borderStyle & """>" & "&nbsp;" & "</td>" & vbCrLf & vbCrLf
+
+                   
+
+                    ElseIf colIdx = lastcell Then
+
+                       
+
+                        'htmltbl = htmltbl & "<td colspan=""" & (colSpanCount * 3) & """ style=""" & "Font-size=" & fontSize & ";" & "font-family:" & fontFamily & "; vertical-align:bottom; text-align:" & alignText & "; padding-left:" & Left_indent & "; text-indent:" & hangingIndent & "; padding-top:" & Top_indent & "; padding-bottom:" & Bottom_indent & "; padding-right:" & Right_indent & borderStyle & """>" & htmlLine & "</td>" & vbCrLf & "<td style=""" & "font-family:" & fontFamily & borderStyle & """>" & "&nbsp;" & "</td>" & vbCrLf
+
+                        htmltbl = htmltbl & "<td colspan=""" & (colSpanCount * 4) - 2 & """ style=""" & "Font-size=" & fontSize & ";" & "font-family:" & fontFamily & "; vertical-align:bottom; text-align:" & alignText & "; padding-left:" & Left_indent & "; text-indent:" & hangingIndent & "; padding-top:" & Top_indent & "; padding-bottom:" & Bottom_indent & "; padding-right:" & Right_indent & ";" & borderStyle & """>" & htmlLine & "</td>" & vbCrLf & "<td style=""" & "Font-size=" & fontSize & ";" & "font-family:" & fontFamily & ";" & borderStyle & """>" & "&nbsp;" & "</td>" & vbCrLf & vbCrLf
+
+                   
+
+                    ElseIf colSpanCount = 1 Then
+
+                                           
+
+                        htmltbl = htmltbl & "<td colspan=""" & (colSpanCount * 2) & """ style=""" & "Font-size=" & fontSize & ";" & "font-family:" & fontFamily & "; vertical-align:bottom; text-align:" & alignText & "; padding-left:" & Left_indent & "; text-indent:" & hangingIndent & "; padding-top:" & Top_indent & "; padding-bottom:" & Bottom_indent & "; padding-right:" & Right_indent & ";" & borderStyle & """>" & htmlLine & "</td>" & vbCrLf & "<td style=""" & "Font-size=" & fontSize & ";" & "font-family:" & fontFamily & ";" & borderStyle & """>" & "&nbsp;" & "</td>" & vbCrLf & "<td style=""" & "Font-size=" & fontSize & ";" & "font-family:" & fontFamily & borderStyle & """>" & "&nbsp;" & "</td>" & vbCrLf
+
+                   Else
+
+                   
+
+                        htmltbl = htmltbl & "<td colspan=""" & (colSpanCount * 3) & """ style=""" & "Font-size=" & fontSize & ";" & "font-family:" & fontFamily & ";" & "; vertical-align:bottom; text-align:" & alignText & "; padding-left:" & Left_indent & "; text-indent:" & hangingIndent & "; padding-top:" & Top_indent & "; padding-bottom:" & Bottom_indent & "; padding-right:" & Right_indent & ";" & borderStyle & """>" & htmlLine & "</td>" & vbCrLf & "<td style=""" & "Font-size=" & fontSize & ";" & "font-family:" & fontFamily & borderStyle & """>" & "&nbsp;" & "</td>" & vbCrLf & "<td style=""" & "Font-size=" & fontSize & ";" & "font-family:" & fontFamily & borderStyle & """>" & "&nbsp;" & "</td>" & vbCrLf
+
+                   
+
+                    End If
+
+                   
+
+                    GoTo skipcell
+
+                   
+
+                    End If
+
+ 
+
+                If colIdx >= 2 And rowIdx > Header Then
+
+                Dim curW As String, valW As String, rightW As String
+
+               
+
+                htmltbl = htmltbl & BuildFinalTDPattern(htmlLine, fontSize, fontFamily, GetCellBorderStyle(cel), colSpanCount, colIdx, rowIdx, lastcell, beforeTag, outTag) & vbCrLf
+
+               
+
+                ElseIf rowIdx > Header Then
+
+               
+
+                htmltbl = htmltbl & "<td " & " style=""" & "Font-size=" & fontSize & ";" & "font-family:" & fontFamily & "; vertical-align:bottom; text-align:" & alignText & "; padding-left:" & Left_indent & "; padding-top:" & Top_indent & "; padding-bottom:" & Bottom_indent & "; padding-right:" & Right_indent & ";" & borderStyle & """>" & htmlLine & "</td>" & vbCrLf & vbCrLf & "<td style=""" & "font-family:" & fontFamily & ";" & borderStyle & """>" & "&nbsp;" & "</td>" & vbCrLf
+
+              
+
+               End If
+
+              
+
+               
+
+           
+
+skipcell:
+
+            Next cel
+
+                       
+
+           htmltbl = htmltbl & "</tr>" & vbCrLf
+
+          
+
+        Next row
+
+       
+
+        'Next Tbl
+
+       
+
+        htmltbl = htmltbl & vbCrLf & "</table>" & vbCrLf & vbCrLf
+
+                       
+
+        ConvertWordTableToHTML = htmltbl
+
+   
+
+End Function
+
+Private Function FormatMarginValue(v As Single) As String
+
+    ' Converts Word measurement (points) to HTML unit: pt or in
+
+    ' 1 inch = 72 points
+
+    If v = 0 Then
+
+        FormatMarginValue = "0"
+
+    ElseIf Abs(v) >= 72 Then
+
+        FormatMarginValue = Round(v / 72, 2) & "in"
+
+    Else
+
+        FormatMarginValue = Round(v, 1) & "pt"
+
+    End If
+
+End Function
+
+Private Function RGBToHex(fontColorCurrent As Long) As String
+
+    ' Converts Word color value to HTML hex color
+
+    Dim r As Long, g As Long, b As Long
+
+    If fontColorCurrent = wdColorAutomatic Then
+
+        RGBToHex = "" ' skip if default
+
+        Exit Function
+
+    End If
+
+    r = fontColorCurrent Mod 256
+
+    g = (fontColorCurrent \ 256) Mod 256
+
+    b = (fontColorCurrent \ 65536) Mod 256
+
+    RGBToHex = "#" & Right("0" & Hex(r), 2) & Right("0" & Hex(g), 2) & Right("0" & Hex(b), 2)
+
+End Function
+
+ 
+
+Private Function GetSymbol(textPart As String) As String
+
+ 
+
+        Select Case textPart
+
+           Case ChrW(120): textPart = "x"
+
+           Case ChrW(111): textPart = "o"
+
+           Case ChrW(251): textPart = "&ucirc;"
+
+           Case ChrW(252): textPart = "&uuml;"
+
+           Case ChrW(253): textPart = "&yacute;"
+
+           Case ChrW(254): textPart = "&thorn;"
+
+        End Select
+
+ 
+
+ 
+
+End Function
+
+ 
+
+Function ConvertListToTable(para As Paragraph) As String
+
+    ' Simple one-row table conversion for bullet/number paragraph
+
+    ConvertListToTable = "<table cellspacing=""0"" cellpadding=""4"" border=""1"" style=""width:100%; border-collapse:collapse; font-family: Arial, Helvetica, Sans-Serif; font-size:10pt;""><tr><td>" & ReplaceSpecialChars(para.Range.Text) & "</td></tr></table>" & vbCrLf
+
+End Function
+
+Private Function GetAlignment(p As Paragraph) As String
+
+    Select Case p.Alignment
+
+        Case wdAlignParagraphLeft
+
+            GetAlignment = "left"
+
+        Case wdAlignParagraphCenter
+
+            GetAlignment = "center"
+
+        Case wdAlignParagraphRight
+
+            GetAlignment = "right"
+
+        Case wdAlignParagraphJustify
+
+            GetAlignment = "justify"
+
+        Case Else
+
+            GetAlignment = "left"
+
+    End Select
+
+End Function
+
+ 
+
+Private Function GetCellBorderStyle(cel As Cell) As String
+
+    Dim s As String
+
+    Dim b As Border
+
+    Dim colorHex As String
+
+    Dim lineWidth As String
+
+    Dim lineStyle As String
+
+    Dim side As Variant
+
+    Dim sides As Variant
+
+   
+
+    sides = Array(wdBorderTop, wdBorderBottom, wdBorderLeft, wdBorderRight)
+
+   
+
+    For Each side In sides
+
+        Set b = cel.Borders(side)
+
+        If b.lineStyle <> wdLineStyleNone Then
+
+           
+
+            ' Get width
+
+            Select Case b.lineWidth
+
+                Case wdLineWidth025pt: lineWidth = "0.25pt"
+
+                Case wdLineWidth050pt: lineWidth = "0.5pt"
+
+                Case wdLineWidth075pt: lineWidth = "0.75pt"
+
+                Case wdLineWidth100pt: lineWidth = "1pt"
+
+                Case wdLineWidth150pt: lineWidth = "1.5pt"
+
+                Case wdLineWidth225pt: lineWidth = "2.25pt"
+
+                Case wdLineWidth300pt: lineWidth = "3pt"
+
+                Case Else: lineWidth = "1pt"
+
+            End Select
+
+           
+
+            ' Get line style
+
+            Select Case b.lineStyle
+
+                Case wdLineStyleSingle: lineStyle = "solid"
+
+                Case wdLineStyleDouble: lineStyle = "double"
+
+                Case Else: lineStyle = "solid"
+
+            End Select
+
+           
+
+            ' Get color (skip Auto or Black)
+
+            colorHex = RGBToHex(b.Color)
+
+            If colorHex = "#000000" Or colorHex = "#00000000" Then
+
+                colorHex = "Black"
+
+            End If
+
+           
+
+            ' Build style per side
+
+            Select Case side
+
+                Case wdBorderTop
+
+                    s = s & "border-top:" & colorHex & " " & lineWidth & " " & lineStyle
+
+                Case wdBorderBottom
+
+                    s = s & "border-bottom:" & colorHex & " " & lineWidth & " " & lineStyle
+
+                Case wdBorderLeft
+
+                    s = s & "border-left:" & colorHex & " " & lineWidth & " " & lineStyle
+
+                Case wdBorderRight
+
+                    s = s & "border-right:" & colorHex & " " & lineWidth & " " & lineStyle
+
+            End Select
+
+        End If
+
+    Next side
+
+ 
+
+   
+
+    GetCellBorderStyle = Trim(s)
+
+   
+
+End Function
+
+ 
+
+Private Function BorderColorName(ByVal colorVal As Long) As String
+
+    Select Case colorVal
+
+        Case wdColorAutomatic, -16777216
+
+            BorderColorName = "Black"
+
+        Case wdColorBlack
+
+            BorderColorName = "Black"
+
+        Case wdColorRed
+
+            BorderColorName = "Red"
+
+        Case wdColorBlue
+
+            BorderColorName = "Blue"
+
+        Case wdColorGreen
+
+            BorderColorName = "Green"
+
+        Case wdColorWhite
+
+            BorderColorName = "White"
+
+        Case wdColorGray25
+
+            BorderColorName = "Gray"
+
+        Case Else
+
+            BorderColorName = RGBToHex_border(colorVal)
+
+    End Select
+
+End Function
+
+ 
+
+Private Function RGBToHex_border(ByVal colorVal As Long) As String
+
+    RGBToHex_border = "#" & Right("0" & Hex(colorVal Mod 256), 2) & _
+
+                     Right("0" & Hex((colorVal \ 256) Mod 256), 2) & _
+
+                     Right("0" & Hex((colorVal \ 65536) Mod 256), 2)
+
+End Function
+
+ 
+
+ 
+
+Option Explicit
+
+ 
+
+Function GetTableAndColumnPercent(tbl As Object) As String
+
+    Dim col As Column
+
+    Dim percent As Double
+
+    Dim colPercent As Double
+
+    Dim msg As String
+
+    Dim msg1 As String
+
+    Dim cWidth As String
+
+ 
+
+    ' --- Get Table Width in Percentage ---
+
+    If tbl.PreferredWidthType = wdPreferredWidthPercent Then
+
+        percent = tbl.PreferredWidth
+
+        msg1 = "Table Width: " & Format(percent, "0.##") & "%" & vbCrLf & vbCrLf
+
+    Else
+
+        msg1 = "Table width is not set in percentage." & vbCrLf & _
+
+              "Current width: " & Format(tbl.PreferredWidth, "0.##") & " points" & vbCrLf & vbCrLf
+
+    End If
+
+ 
+
+    ' --- Get Column Widths in Percentage ---
+
+    For Each col In tbl.Columns
+
+        If col.PreferredWidthType = wdPreferredWidthPercent Then
+
+            colPercent = col.PreferredWidth
+
+        Else
+
+            ' Convert point width to percent based on table usable width (if table is percentage-based)
+
+            If tbl.PreferredWidthType = wdPreferredWidthPercent And tbl.PreferredWidth > 0 Then
+
+                colPercent = (col.width / (tbl.PreferredWidth / 100))
+
+            Else
+
+                colPercent = 0
+
+            End If
+
+        End If
+
+       
+
+        cWidth = msg & "Column " & col.Index & ": " & Format(colPercent, "0.##") & "%" & vbCrLf
+
+    Next col
+
+ 
+
+    ' --- Return the result string ---
+
+    GetTableAndColumnPercent = cWidth
+
+   
+
+End Function
+
+ 
+
+ 
+
+Function ColorToHex(lColor As Long) As String
+
+    Dim r As Long, g As Long, b As Long
+
+    r = lColor Mod 256
+
+    g = (lColor \ 256) Mod 256
+
+    b = (lColor \ 65536) Mod 256
+
+    ColorToHex = "rgb(" & r & " " & g & " " & b & ")"
+
+   
+
+End Function
+
+ 
+
+'---------------------------------------------
+
+' Function : ConvertSpaceIndent
+
+' Purpose  : Adjusts indentation in table cells based on
+
+'             spaces or parentheses spacing patterns.
+
+' Usage    : Call ConvertSpaceIndent(tbl)
+
+'---------------------------------------------
+
+Public Function ConvertSpaceIndent(tbl As Object)
+
+ 
+
+    Dim r As Long
+
+    Dim tmpRng As Range
+
+    Dim txt As String
+
+    Dim spaceCount As Long
+
+    Dim indentInches As Double
+
+   
+
+    On Error Resume Next
+
+    Application.ScreenUpdating = False
+
+ 
+
+    '--- Loop through all rows in table
+
+    For r = 1 To tbl.rows.count
+
+        Set tmpRng = tbl.Cell(r, 1).Range
+
+        tmpRng.End = tmpRng.End - 1  ' remove end-of-cell marker
+
+       
+
+        '--- Get cell text
+
+        txt = tmpRng.Text
+
+       
+
+        '--- Case 1: Pattern like "( )" or "(  )" etc
+
+        If txt Like "(*@)" Or InStr(txt, Chr(160)) > 0 Then
+
+            spaceCount = Len(txt) - Len(Replace(txt, Chr(160), ""))
+
+           
+
+            If spaceCount > 1 Then
+
+                indentInches = 0.04 * spaceCount
+
+                tmpRng.ParagraphFormat.LeftIndent = InchesToPoints(indentInches)
+
+            End If
+
+        End If
+
+       
+
+        '--- Case 2: Two or more regular spaces
+
+        If InStr(txt, "  ") > 0 Then
+
+            spaceCount = Len(txt) - Len(Replace(txt, " ", ""))
+
+           
+
+            If spaceCount > 1 Then
+
+                indentInches = 0.04 * spaceCount
+
+                tmpRng.ParagraphFormat.LeftIndent = InchesToPoints(indentInches)
+
+            End If
+
+        End If
+
+    Next r
+
+ 
+
+    '--- Now clean up patterns from table
+
+    With tbl.Range.Find
+
+        '.Text = "(" & Chr(160) & ")@"
+
+        .Text = "Chr(160){2,}"
+
+        .MatchWildcards = True
+
+        .Replacement.Text = "Chr(160)"
+
+        .Wrap = wdFindStop
+
+        .Execute Replace:=wdReplaceAll
+
+        .MatchWildcards = False
+
+    End With
+
+ 
+
+    With tbl.Range.Find
+
+        .Text = "^32{2,}"
+
+        .MatchWildcards = True
+
+        .Replacement.Text = ""
+
+        .Wrap = wdFindStop
+
+        .Execute Replace:=wdReplaceAll
+
+        .MatchWildcards = False
+
+    End With
+
+ 
+
+    Application.ScreenUpdating = True
+
+    On Error GoTo 0
+
+ 
+
+End Function
+
+ 
+
+Sub Insert_nbsp_to_Emptycell(tbl As Object)
+
+Application.ScreenUpdating = False
+
+    Dim str As String
+
+    Dim tmp As Range
+
+    Dim n As Integer
+
+    Dim m As Integer
+
+    Dim i As Integer, j As Integer
+
+   
+
+    Set tmp = tbl.Range
+
+    With tmp.Find
+
+        .Text = " "
+
+        .Replacement.Text = " "
+
+        .Wrap = wdFindStop
+
+        .Execute Replace:=wdReplaceAll
+
+    End With
+
+n = tmp.Tables(1).rows.count
+
+m = tmp.Tables(1).Columns.count
+
+    For i = 1 To n
+
+        For j = 1 To m
+
+            On Error Resume Next
+
+            tmp.Tables(1).Cell(i, j).Select
+
+            str = Len(LTrim(Selection.Text)) - 2
+
+            If str = 0 Then
+
+                Selection.TypeText (" ")
+
+            End If
+
+        Next j
+
+    Next i
+
+Application.ScreenUpdating = True
+
+End Sub
+
+'====================================================================
+
+' Function  : GetCellHTMLAttributes
+
+' Purpose   : Returns HTML attributes (colspan, rowspan, align, valign)
+
+' Compatible: Works in all Word versions — no MergeArea, no ColumnSpan
+
+'====================================================================
+
+Function GetCellHTMLAttributes(cel As Cell) As String
+
+    Dim tbl As Object
+
+    Dim colspan As Long
+
+    Dim rowSpan As Long
+
+    Dim htmlAttr As String
+
+    Dim hAlign As String
+
+    Dim vAlign As String
+
+    Dim baseLeft As Single, baseTop As Single
+
+    Dim i As Long, j As Long
+
+    Dim r As Long, c As Long
+
+ 
+
+    On Error Resume Next
+
+    Set tbl = ActiveDocument.Tables
+
+    r = cel.RowIndex
+
+    c = cel.ColumnIndex
+
+ 
+
+    '--- Find base cell position ---
+
+    baseLeft = cel.Range.Information(wdHorizontalPositionRelativeToPage)
+
+    baseTop = cel.Range.Information(wdVerticalPositionRelativeToPage)
+
+ 
+
+    '--- Calculate COLSPAN by comparing right edges of merged cells ---
+
+    colspan = 1
+
+    For j = c + 1 To tbl.Columns.count
+
+        If Abs(tbl.Cell(r, j).Range.Information(wdHorizontalPositionRelativeToPage) - baseLeft) < 1 Then
+
+            colspan = colspan + 2
+
+        Else
+
+            Exit For
+
+        End If
+
+    Next j
+
+ 
+
+    '--- Calculate ROWSPAN by comparing bottom edges of merged cells ---
+
+'    rowSpan = 1
+
+'    For i = r + 1 To tbl.Rows.Count
+
+'        If Abs(tbl.Cell(i, c).Range.Information(wdVerticalPositionRelativeToPage) - baseTop) < 1 Then
+
+'            rowSpan = rowSpan + 1
+
+'        Else
+
+'            Exit For
+
+'        End If
+
+'    Next i
+
+ 
+
+'    '--- Horizontal alignment ---
+
+'    Select Case cel.Range.ParagraphFormat.Alignment
+
+'        Case wdAlignParagraphLeft:   hAlign = "left"
+
+'        Case wdAlignParagraphCenter: hAlign = "center"
+
+'        Case wdAlignParagraphRight:  hAlign = "right"
+
+'        Case Else:                   hAlign = "left"
+
+'    End Select
+
+'
+
+'    '--- Vertical alignment ---
+
+'    Select Case cel.VerticalAlignment
+
+'        Case wdCellAlignVerticalTop:    vAlign = "top"
+
+'        Case wdCellAlignVerticalCenter: vAlign = "middle"
+
+'        Case wdCellAlignVerticalBottom: vAlign = "bottom"
+
+'        Case Else:                      vAlign = "top"
+
+'    End Select
+
+'
+
+'    '--- Build HTML attributes ---
+
+    htmlAttr = "colspan=""" & colspan & """ "
+
+'               "rowspan=""" & rowSpan & """ " & _
+
+'               "align=""" & hAlign & """ " & _
+
+'               "valign=""" & vAlign & """"
+
+ 
+
+    GetCellHTMLAttributes = htmlAttr
+
+End Function
+
+ 
+
+Function ReplaceWingdingsSymbol(CharacterNumber As Long, Optional fontName As String = "") As String
+
+    ' Handles common Wingdings/Webdings symbols and returns HTML-safe equivalent.
+
+   
+
+    Select Case CharacterNumber
+
+        Case -3976
+
+            ' Checked box
+
+            ReplaceWingdingsSymbol = "x "
+
+           
+
+        Case -9744
+
+            ' Empty box
+
+            ReplaceWingdingsSymbol = "o "
+
+           
+
+        Case -9745
+
+            ' Checked box (alternate)
+
+            ReplaceWingdingsSymbol = "o "
+
+           
+
+        Case -3981
+
+            ' Tick mark
+
+            ReplaceWingdingsSymbol = "ü "
+
+           
+
+         Case -3928
+
+            ' Square
+
+            ReplaceWingdingsSymbol = "o "
+
+           
+
+        Case -3869
+
+            ' Right arrow
+
+            ReplaceWingdingsSymbol = "o "
+
+           
+
+         Case 40
+
+            ' Right arrow
+
+            ReplaceWingdingsSymbol = "o "
+
+       
+
+    End Select
+
+End Function
+
+ 
+
+Function GetPageBreakHTML(ByVal pageNo As Long) As String
+
+    Dim htmlpgbrk As String
+
+    htmlpgbrk = _
+
+        "<DIV STYLE=""margin-top:6pt; margin-bottom:6pt; border-bottom:Black 1pt solid"">" & _
+
+        "<p style=""text-align:center; margin-top:0pt; margin-bottom:0pt"">" & _
+
+        "<FONT STYLE=""font-family:Arial, Helvetica, Sans-Serif; font-size:10pt"">" & _
+
+        "<!-- Field: Sequence; Type: Arabic; Name: PageNo -->" & pageNo - 2 & "<!-- Field: /Sequence -->" & _
+
+        "</font>&nbsp;</p></DIV>" & vbCrLf
+
+    GetPageBreakHTML = htmlpgbrk
+
+End Function
+
+ 
+
+' === Find where to split: scan left ? right, stop before first ")" ===
+
+Function FindSplitPosition(txt As String) As Long
+
+    Dim i As Long, ch As String
+
+    txt = Trim(txt)
+
+    FindSplitPosition = 0
+
+   
+
+    ' 1. Find first closing parenthesis and split before it
+
+    For i = 1 To Len(txt)
+
+        ch = Mid(txt, i, 1)
+
+        If ch = ")" Then
+
+            FindSplitPosition = i     ' split immediately BEFORE ")"
+
+            Exit Function
+
+        End If
+
+    Next i
+
+   
+
+    ' 2. If no ")", look for percent or other symbols
+
+    For i = 1 To Len(txt)
+
+        ch = Mid(txt, i, 1)
+
+        If ch = "%" Or ch = "]" Or ch = "}" Then
+
+            FindSplitPosition = i
+
+            Exit Function
+
+        End If
+
+    Next i
+
+End Function
+
+ 
+
+' === Enhanced SplitCurrencyValueSymbols (handles %) and ")%" ===
+
+Function SplitCurrencyValueSymbols(txt As String, ByRef curPart As String, ByRef valPart As String, ByRef rightPart As String)
+
+    Dim temp As String, splitPos As Long
+
+    Dim htmlcur As String, beforeTag As String, afterTag As String, innerText As String, found As String, PreserveTag As String
+
+ 
+
+    txt = Trim(txt)
+
+   
+
+    curPart = "&nbsp;"
+
+    valPart = ""
+
+    rightPart = "&nbsp;"
+
+   
+
+    '------------------
+
+    Dim p1 As Long, p2 As Long
+
+   
+
+    Do While Left(txt, 1) = "<"
+
+        p2 = InStr(1, txt, ">")
+
+        If p2 = 0 Then Exit Do
+
+ 
+
+        beforeTag = beforeTag & Left(txt, p2)
+
+        txt = Mid(txt, p2 + 1)
+
+        txt = LTrim(txt)
+
+    Loop
+
+   
+
+    '-------------------------
+
+   
+
+      Do While Right(txt, 1) = ">"
+
+        p1 = InStrRev(txt, "<")
+
+        If p1 = 0 Then Exit Do
+
+ 
+
+        afterTag = Mid(txt, p1) & afterTag
+
+        txt = Left(txt, p1 - 1)
+
+        txt = RTrim(txt)
+
+    Loop
+
+   
+
+    'Extract opening <font ...> tag
+
+    'beforeTag = CutTagFromText(txt)
+
+   
+
+    'Extract closing </font> tag
+
+    'afterTag = Right(txt, Len(txt) - InStrRev(txt, "<") + 1)
+
+   
+
+    'Extract inner text only
+
+    'txt = Mid(txt, InStr(1, txt, ">") + 1, _
+
+                    InStrRev(txt, "<") - InStr(1, txt, ">") - 1)
+
+    'txt = Right(txt, Len(txt) - Len(beforeTag))
+
+   
+
+    txt = Replace(txt, beforeTag, "", 1, 1)
+
+   
+
+    ' --- 1. Normalize leading currency signs ---
+
+    If Left(txt, 2) = "-$" Then
+
+        curPart = "$"
+
+        temp = "-" & Mid(txt, 3)
+
+    ElseIf Left(txt, 2) = "($" Then
+
+        curPart = "$"
+
+        temp = "(" & Mid(txt, 3)
+
+    ElseIf Left(txt, 1) = "$" Then
+
+        curPart = "$"
+
+        temp = Mid(txt, 2)
+
+    ElseIf Left(txt, 1) = "(" And Mid(txt, 2, 1) = "$" Then
+
+        curPart = "$"
+
+        temp = "(" & Mid(txt, 3)
+
+    ElseIf Left(txt, 1) = "-" And Mid(txt, 2, 1) = "$" Then
+
+        curPart = "$"
+
+        temp = "-" & Mid(txt, 3)
+
+    Else
+
+        temp = txt
+
+    End If
+
+   
+
+    temp = Trim(temp)
+
+   
+
+    ' --- 2. Find split point (before first closing parenthesis) ---
+
+    splitPos = FindSplitPosition(temp)
+
+   
+
+    ' --- Special fix: if pattern like (1,234%) ? split before ")"
+
+    ' but keep % attached to rightPart as ")%"
+
+    If splitPos > 0 Then
+
+        ' If previous character (left of split) is "%", move it into rightPart
+
+        If Mid(temp, splitPos - 1, 1) = "%" Then
+
+            valPart = Left(temp, splitPos - 2)
+
+            rightPart = Mid(temp, splitPos - 1)  ' includes %)
+
+        Else
+
+            valPart = Left(temp, splitPos - 1)
+
+            rightPart = Mid(temp, splitPos)
+
+        End If
+
+    Else
+
+        valPart = temp
+
+        rightPart = "&nbsp;"
+
+    End If
+
+   
+
+    valPart = Trim(valPart)
+
+    rightPart = Trim(rightPart)
+
+   
+
+    ' --- 3. Handle currency sign inside value ---
+
+    If Left(valPart, 1) = "$" Then
+
+        valPart = Mid(valPart, 2)
+
+        curPart = "$"
+
+    End If
+
+   
+
+    ' --- 4. Adjust if rightPart starts with "%)" ? reorder to ")%" ---
+
+    If Left(rightPart, 2) = "%)" Then rightPart = ")%"
+
+   
+
+    ' --- 5. Cleanup ---
+
+    If valPart = "" Then valPart = "&nbsp;"
+
+    If rightPart = "" Then rightPart = "&nbsp;"
+
+   
+
+    curPart = beforeTag & Trim(curPart)
+
+    valPart = beforeTag & Trim(valPart)
+
+    rightPart = beforeTag & Trim(rightPart)
+
+   
+
+    SplitCurrencyValueSymbols = htmlcur
+
+   
+
+End Function
+
+ 
+
+Function BuildFinalTDPattern(txt As String, fSize As String, fName As String, borderStyle As String, colSpanCount As Long, colIdx As Long, rowIdx As Long, lastcell As Long, beforeTag As String, outTag As String) As String
+
+    Dim curPart As String, valPart As String, rightPart As String, colmspan As String
+
+    Dim html As String, widthVal As String, valLen As Long, alignText As String, trange As Range, tableText As String
+
+   
+
+    
+
+    txt = Trim(txt)
+
+   
+
+            
+
+     ' --- Get the real colspan from Word ---
+
+   
+
+                Select Case Selection.ParagraphFormat.Alignment
+
+                    Case wdAlignParagraphRight
+
+                        alignText = "right"
+
+                    Case wdAlignParagraphCenter
+
+                        alignText = "center"
+
+                    Case wdAlignPageNumberLeft
+
+                        alignText = "Left"
+
+                    Case Else
+
+                        alignText = "Justify"
+
+            End Select
+
+   
+
+    
+
+    Dim curW As String, valW As String, rightW As String
+
+ 
+
+    'AUTO WIDTHS
+
+    curW = GetAutoWidth(curPart)              ' auto-fit for $
+
+    rightW = GetAutoWidth(rightPart)          ' auto-fit for ) or )%
+
+    valW = GetAutoWidth(valPart, 5)           ' auto-fit + 5 extra chars
+
+   
+
+    
+
+    'txt = Trim(txt)
+
+    If txt = "" Then
+
+        BuildFinalTDPattern = _
+
+            MakeTD("&nbsp;", "1%", "left", fSize, fName, borderStyle, "") & _
+
+            MakeTD("&nbsp;", "12%", "right", fSize, fName, borderStyle, "") & _
+
+            MakeTD("&nbsp;", "1%", "left", fSize, fName, borderStyle, "") & _
+
+            MakeTD("&nbsp;", "1%", "left", fSize, fName, borderStyle, "")
+
+        Exit Function
+
+    End If
+
+ 
+
+    ' --- Split into $ | value | trailing symbols ---
+
+    SplitCurrencyValueSymbols txt, curPart, valPart, rightPart
+
+   
+
+'widthVal = "12%"
+
+ 
+
+'    ' --- Dynamic width for numeric part ---
+
+'    valLen = Len(Replace(valPart, ",", ""))
+
+'    Select Case valLen
+
+'        Case Is <= 6: widthVal = "10%"
+
+'        Case 7 To 9: widthVal = "13%"
+
+'        Case 10 To 12: widthVal = "15%"
+
+'        Case Else: widthVal = "18%"
+
+'    End Select
+
+ 
+
+    ' --- Compose HTML (always 5 TDs) ---
+
+    html = ""
+
+   
+
+     If colIdx = lastcell Then
+
+        html = html & MakeTD(curPart, curW, "left", fSize, fName, borderStyle, "")           ' $
+
+        html = html & MakeTD(valPart, valW, "right", fSize, fName, borderStyle, "")      ' number
+
+        html = html & MakeTD(rightPart, rightW, "left", fSize, fName, borderStyle, "")        ' ), )%, etc.
+
+        'html = html & MakeTD("&nbsp;", "1%", "left", fSize, fName, borderStyle, "")
+
+    Else
+
+   
+
+        html = html & MakeTD(curPart, curW, "left", fSize, fName, borderStyle, "")           ' $
+
+        html = html & MakeTD(valPart, valW, "right", fSize, fName, borderStyle, "")      ' number
+
+        html = html & MakeTD(rightPart, rightW, "left", fSize, fName, borderStyle, "")         ' ), )%, etc.
+
+        html = html & MakeTD("&nbsp;", "1%", "left", fSize, fName, borderStyle, "")
+
+      End If
+
+   
+
+    BuildFinalTDPattern = html
+
+   
+
+End Function
+
+Function MakeTD2( _
+
+        cellValue As String, _
+
+        width As String, _
+
+        align As String, _
+
+        fSize As String, _
+
+        fName As String, _
+
+        borderStyle As String, _
+
+        extraAttr As String) As String
+
+ 
+
+    Dim style As String, colmspan As String, a As Integer, colNum As String, cel As Cell, rng As Range
+
+    Dim curPart As String, valPart As String, rightPart As String, ColumnIndex As Integer
+
+   
+
+    style = "width:" & width & ";text-align:" & align & ";"
+
+ 
+
+    If fSize <> "" Then
+
+        style = style & "font-size:" & fSize & ";"
+
+    End If
+
+ 
+
+    If fName <> "" Then
+
+        style = style & "font-family:" & fName
+
+    End If
+
+ 
+
+    If borderStyle <> "" Then
+
+        If Left(borderStyle, 1) = ";" Then
+
+            style = style & borderStyle
+
+        Else
+
+            style = style & ";" & borderStyle
+
+        End If
+
+        If Right(style, 1) <> ";" Then style = style & ";"
+
+    End If
+
+   
+
+    MakeTD = "<td style=""" & style & """" & _
+
+             IIf(extraAttr <> "", " " & extraAttr, "") & _
+
+             ">" & cellValue & "</td>"
+
+End Function
+
+ 
+
+ 
+
+Function MakeTD3( _
+
+        cellValue As String, _
+
+        fSize As String, _
+
+        fName As String, _
+
+        borderStyle As String, _
+
+        curW As String, valW As String, rightW As String, _
+
+        extraAttr As String) As String
+
+       
+
+        'width As String, _
+
+ 
+
+    Dim style As String, colmspan As String, a As Integer, colNum As String, cel As Cell, rng As Range
+
+    Dim curPart As String, valPart As String, rightPart As String, ColumnIndex As Integer
+
+   
+
+    style = "width:" & width & ";text-align:" & align & ";"
+
+    style = "text-align:" & align & ";"
+
+ 
+
+    If fSize <> "" Then
+
+        style = style & "font-size:" & fSize & ";"
+
+    End If
+
+ 
+
+    If fName <> "" Then
+
+        style = style & "font-family:" & fName
+
+    End If
+
+ 
+
+    If borderStyle <> "" Then
+
+        If Left(borderStyle, 1) = ";" Then
+
+            style = style & borderStyle
+
+        Else
+
+            style = style & ";" & borderStyle
+
+        End If
+
+        If Right(style, 1) <> ";" Then style = style & ";"
+
+    End If
+
+   
+
+    MakeTD = "<td style=""" & style & """" & _
+
+             IIf(extraAttr <> "", " " & extraAttr, "") & _
+
+             ">" & cellValue & "</td>"
+
+End Function
+
+ 
+
+ 
+
+Sub ShowProgressBar()
+
+    Dim i As Long, total As Long
+
+    total = 5000  ' <-- change this based on your process length
+
+ 
+
+    ' Show the progress form
+
+    Load frmProgress1
+
+    frmProgress1.Show vbModeless
+
+    DoEvents
+
+ 
+
+    ' Start your process
+
+'    For i = 1 To total
+
+        ' ==== your real processing code here ====
+
+        Call WordToHtml
+
+        DoEvents
+
+       
+
+        ' ==== Update every 50 iterations ====
+
+        If i Mod 50 = 0 Then
+
+            UpdateProgressBar i, total
+
+        End If
+
+'   Next i
+
+ 
+
+    ' Hide the progress bar
+
+    Unload frmProgress1
+
+    MsgBox "Processing completed successfully!", vbInformation
+
+End Sub
+
+ 
+
+ 
+
+Sub UpdateProgressBar(ByVal current As Long, ByVal total As Long)
+
+    Dim pct As Double
+
+    pct = current / total
+
+ 
+
+    With frmProgress
+
+        .lblBar.width = pct * .lblFrame.width
+
+        .lblPercent.Caption = Format(pct, "0%")
+
+        .Repaint
+
+    End With
+
+End Sub
+
+ 
+
+ 
+
+'=== Convert Word line style to CSS equivalent ===
+
+Function GetBorderLineStyleName(ls As WdLineStyle) As String
+
+    Select Case ls
+
+        Case wdLineStyleDashDot, wdLineStyleDashDotDot, wdLineStyleDashSmallGap
+
+            GetBorderLineStyleName = "dashed"
+
+        Case wdLineStyleDot
+
+            GetBorderLineStyleName = "dotted"
+
+        Case wdLineStyleDouble
+
+            GetBorderLineStyleName = "double"
+
+        Case wdLineStyleSingle, wdLineStyleThickThinSmallGap, wdLineStyleTriple
+
+            GetBorderLineStyleName = "solid"
+
+        Case Else
+
+            GetBorderLineStyleName = "solid"
+
+    End Select
+
+End Function
+
+'=== Convert Word color (Long) to #RRGGBB ===
+
+Function GetColorHex(wordColor As Long) As String
+
+    Dim r As Long, g As Long, b As Long
+
+    If wordColor = wdColorAutomatic Or wordColor = 0 Then
+
+        GetColorHex = "#000000"
+
+        Exit Function
+
+    End If
+
+    r = wordColor Mod 256
+
+    g = (wordColor \ 256) Mod 256
+
+    b = (wordColor \ 65536) Mod 256
+
+    GetColorHex = "#" & Right("0" & Hex(r), 2) & Right("0" & Hex(g), 2) & Right("0" & Hex(b), 2)
+
+End Function
+
+Function GetColumnNumberFromSelection() As Long
+
+    Dim rng As Range
+
+   
+
+    ' Ensure selection is inside a table
+
+    If Not Selection.Information(wdWithInTable) Then
+
+        GetColumnNumberFromSelection = 0
+
+        Exit Function
+
+    End If
+
+ 
+
+    ' Use the selection range
+
+    Set rng = Selection.Range
+
+ 
+
+    ' Return the column index of the cell containing the selection
+
+    GetColumnNumberFromSelection = Selection.Range.Cells(1).ColumnIndex
+
+End Function
+
+ 
+
+Function GetCellColspan(tbl As Word.Table, r As Long, c As Long) As Long
+
+    Dim curCol As Long, nextCol As Long
+
+   
+
+    ' Current cell's internal column index
+
+    curCol = tbl.Cell(r, c).ColumnIndex
+
+   
+
+    ' If this is the last cell of the row ? colspan = 1
+
+    If c = tbl.rows(r).Cells.count Then
+
+        GetCellColspan = 1
+
+        Exit Function
+
+    End If
+
+ 
+
+    ' Next cell's internal column index
+
+    nextCol = tbl.Cell(r, c + 1).ColumnIndex
+
+   
+
+    ' Colspan is difference
+
+    GetCellColspan = nextCol - curCol
+
+End Function
+
+Function CutTagFromText(txt As String) As String
+
+ 
+
+    Dim s As String, p1 As Long, p2 As Long, outTag As String
+
+ 
+
+    s = txt
+
+ 
+
+    ' Find start and end of <...>
+
+    p1 = InStr(s, "<")
+
+    p2 = InStr(p1 + 1, s, ">")
+
+ 
+
+    If p1 > 0 And p2 > 0 Then
+
+        outTag = Mid$(s, p1, p2 - p1 + 1)   ' Extract tag
+
+        s = Left$(s, p1 - 1) & Mid$(s, p2 + 1) ' Remove it
+
+    Else
+
+        outTag = ""                         ' No tag found
+
+    End If
+
+ 
+
+    CutTagFromText = outTag
+
+   
+
+ 
+
+End Function
+
+ 
+
+Function IsFinancialTable(tbl As Object) As Boolean
+
+    Dim cel As Cell
+
+    Dim txt As String
+
+   
+
+    For Each cel In tbl.Range.Cells
+
+        txt = CleanCellText(cel.Range.Text)
+
+       
+
+        If IsFinancialText(txt) Then
+
+            IsFinancialTable = True
+
+            Exit Function
+
+        End If
+
+    Next cel
+
+End Function
+
+ 
+
+Function ConvertWordTableToHTML_TEXT(tbl As Object) As String
+
+'    Dim tbl As object
+
+    Dim run1 As Range
+
+    Dim t As String
+
+    Dim fontSizeCurrent As Single, fontSizePrev As Single
+
+    Dim fontColorCurrent As String, fontColorPrev As String
+
+    Dim boldCurrent As Boolean, boldPrev As Boolean
+
+    Dim italicCurrent As Boolean, italicPrev As Boolean
+
+    Dim underlineCurrent As Boolean, underlinePrev As Boolean
+
+    Dim openBold As Boolean, openItalic As Boolean, openUnderline As Boolean, fontcolorOpen As Boolean, fontsizeOpen As Boolean
+
+    Dim inWingdings As Boolean, prevInWingdings As Boolean
+
+    Dim row As row, cel As Cell
+
+    Dim colIdx As Long, rowIdx As Long
+
+    Dim colmspan As String
+
+   
+
+    Dim fontName As String
+
+    Dim htmlLine As String
+
+    Dim tableIndex As Long
+
+   
+
+    Dim widthPercent As Double
+
+    Dim pageWidth As Double
+
+    Dim marginWidth As Double
+
+    Dim usableWidth As Double
+
+   
+
+    Dim Left_indent As String
+
+    Dim Right_indent As String
+
+    Dim Top_indent As String
+
+    Dim Bottom_indent As String
+
+    Dim hangingIndent As String
+
+   
+
+    Dim html As String
+
+    Dim htmltbl As String
+
+    Dim cellText As String
+
+    Dim fontFamily As String
+
+    Dim fontSize As String
+
+    Dim bgColor As String
+
+    Dim borderBottom As String
+
+    Dim alignText As String
+
+    Dim AlgnWidth As String
+
+    Dim tble As Word.Table
+
+    Dim tWidth As Single, rHeight As Single, cWidth As Single
+
+    Dim i As Long
+
+    Dim n As Long
+
+   
+
+    Dim colCount As Long
+
+    Dim colIndex As Integer
+
+   
+
+    Dim col As Column, dict As Object
+
+    Dim tblPercent  As Double, colPercent As Double
+
+    Dim msg1 As String
+
+    Dim msg As String
+
+    Dim a As Long
+
+    Dim Header As Long
+
+    Dim beforeTag As String
+
+    Dim outTag As String
+
+   
+
+    Call ConvertSpaceIndent(tbl)
+
+    Call Insert_nbsp_to_Emptycell(tbl)
+
+   
+
+    
+
+    'For Each Tbl In ActiveDocument.Tables
+
+    Set tble = ActiveDocument.Tables(1)
+
+   
+
+    tableIndex = ActiveDocument.Range(0, tble.Range.End).Tables.count
+
+   
+
+    
+
+    'Set tble = ActiveDocument.Tables(tableIndex)
+
+       
+
+    pageWidth = ActiveDocument.PageSetup.pageWidth
+
+    marginWidth = ActiveDocument.PageSetup.LeftMargin + ActiveDocument.PageSetup.RightMargin
+
+    usableWidth = pageWidth - marginWidth
+
+   
+
+    widthPercent = (tbl.Range.Information(wdHorizontalPositionRelativeToPage) / usableWidth) * 100
+
+    'tWidth = Round(widthPercent)
+
+   
+
+    Dim intPart As Long
+
+    Dim fracPart As Double
+
+ 
+
+    intPart = Fix(widthPercent)
+
+    fracPart = widthPercent - intPart
+
+ 
+
+    If fracPart < 0.5 Then
+
+        tWidth = intPart
+
+    Else
+
+        tWidth = intPart + 0.5
+
+    End If
+
+ 
+
+    tWidth = 100 - ((tWidth - 15) * 2)
+
+'
+
+   
+
+    If ActiveDocument.Tables(tableIndex).rows.Alignment = wdAlignRowLeft Then
+
+        AlgnWidth = "LEFT"
+
+    ElseIf ActiveDocument.Tables(tableIndex).rows.Alignment = wdAlignRowCenter Then
+
+        AlgnWidth = "CENTER"
+
+    ElseIf ActiveDocument.Tables(tableIndex).rows.Alignment = wdAlignRowRight Then
+
+        AlgnWidth = "RIGHT"
+
+    End If
+
+   
+
+    
+
+        '--- Create array for column percentages ---
+
+        colCount = tbl.Columns.count
+
+        ReDim colPercents(1 To colCount)
+
+       
+
+        For colIdx = 1 To colCount
+
+        On Error Resume Next
+
+       
+
+            If tbl.Columns(colIdx).PreferredWidthType <> wdPreferredWidthPercent Then
+
+               colPercents(colIdx) = ((tbl.rows(1).Cells(colIdx).width / 72) / 7.5) * 100
+
+            ElseIf tbl.Columns(colIdx).PreferredWidthType = wdPreferredWidthPercent Then
+
+                colPercents(colIdx) = tbl.Columns(colIdx).PreferredWidth
+
+            ElseIf tbl.PreferredWidthType = wdPreferredWidthPercent Then
+
+                colPercents(colIdx) = (tbl.Columns(colIdx).width / (tbl.PreferredWidth / 100))
+
+            Else
+
+                colPercents(colIdx) = 0
+
+            End If
+
+        Next colIdx
+
+       
+
+        If tWidth > 100 Then
+
+        tWidth = 100
+
+        End If
+
+        '--- Start HTML table ---
+
+    htmltbl = "<table cellspacing=""0"" cellpadding=""0"" Align=" & AlgnWidth & "" & " STYLE=" & """width:" & Format(tWidth, "0") & "%;" & " border-collapse: collapse;"">" & vbCrLf
+
+    'htmltbl = htmltbl & "  <tbody>" & vbCrLf
+
+       
+
+        
+
+        
+
+        ' --- Get Table Width in Percentage ---
+
+    If tbl.PreferredWidthType = wdPreferredWidthPercent Then
+
+        tblPercent = tbl.PreferredWidth
+
+        msg1 = Format(tblPercent, "0")
+
+    Else
+
+        msg1 = Format(tbl.PreferredWidth, "0")
+
+    End If
+
+   
+
+    Dim rng As Range
+
+   
+
+    
+
+    Set tbl = rng.Tables(1)
+
+    tbl.Range.Select
+
+   
+
+    '---------------------------------------------
+
+   
+
+        For Each row In tbl.rows
+
+               
+
+            ' Check for row shading
+
+           
+
+            If row.Shading.BackgroundPatternColor <> wdColorAutomatic Then
+
+                bgColor = ", background-color: " & ColorToHex(row.Shading.BackgroundPatternColor)
+
+            Else
+
+                bgColor = ""
+
+            End If
+
+ 
+
+            htmltbl = htmltbl & "<tr style=""vertical-align: bottom" & bgColor & """>" & vbCrLf
+
+     
+
+            colIndex = 0
+
+           
+
+        For Each cel In row.Cells
+
+           
+
+            Dim lastcell As Long
+
+            colIdx = cel.ColumnIndex
+
+            rowIdx = cel.RowIndex
+
+            lastcell = row.Cells.count
+
+           
+
+            htmlLine = ""
+
+           
+
+             ' Get cell text
+
+                cellText = cel.Range.Text
+
+                'cellText = Replace(cellText, Chr(13), "<br>")
+
+                cellText = Replace(cellText, Chr(7), "")
+
+                cellText = Trim(cellText)
+
+               
+
+                'Header_Row = InputBox("Enter Number of Header")
+
+               
+
+                If cellText = "" Then cellText = "&nbsp;"
+
+                          
+
+                If Len(cellText) - 1 <> 0 Then
+
+        ' Initialize previous states
+
+        fontSizePrev = -1
+
+        boldPrev = False
+
+        italicPrev = False
+
+        underlinePrev = False
+
+        prevInWingdings = False
+
+        openBold = False
+
+        openItalic = False
+
+        openUnderline = False
+
+        fontColorPrev = ""
+
+        fontcolorOpen = False
+
+        fontsizeOpen = False
+
+       
+
+        'For Each run1 In cel.Range.Words
+
+        For Each run1 In cel.Range.Characters
+
+       
+
+           cellText = run1.Text
+
+           cellText = Replace(cellText, Chr(7), "")
+
+           fontName = run1.Font.Name
+
+           If Trim(cellText) = "" And cellText = Chr(7) Then GoTo SkipRun
+
+           Selection.Find.ClearFormatting
+
+           Selection.Find.Replacement.ClearFormatting
+
+          
+
+            ' Replace bullets with Ampersand;
+
+            cellText = Replace(cellText, "&", "&amp;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with lesserthan and greaterthan;
+
+            cellText = Replace(cellText, "<", "&lt;")
+
+            cellText = Replace(cellText, ">", "&gt;")
+
+           
+
+            ' Replace bullets with &bull;
+
+            cellText = Replace(cellText, "•", "&bull;")
+
+            cellText = Replace(cellText, ChrW(&H2022), "&bull;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with endash;
+
+            cellText = Replace(cellText, "–", "&ndash;")
+
+            cellText = Replace(cellText, ChrW(&H2013), "&ndash;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with endash;
+
+            cellText = Replace(cellText, "Chr(180)", "&middot;")
+
+            cellText = Replace(cellText, ChrW(&H2219), "&middot;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with emdash;
+
+            cellText = Replace(cellText, "–", "&mdash;")
+
+            cellText = Replace(cellText, ChrW(&H2014), "&mdash;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with non-breaking space;
+
+            cellText = Replace(cellText, "Chr(160)", "&nbsp;")
+
+            cellText = Replace(cellText, ChrW(&HA0), "&nbsp;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            'numsp
+
+            cellText = Replace(cellText, ChrW(&H2007), "&numsp;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with en space;
+
+            cellText = Replace(cellText, ChrW(&H2002), "&ensp;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with em space;
+
+            cellText = Replace(cellText, ChrW(&H2003), "&ensp;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            
+
+            ' Replace bullets with Apostrophe;
+
+            cellText = Replace(cellText, "'", "&lsquo;")
+
+            cellText = Replace(cellText, ChrW(&H2018), "&lsquo;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with Apostrophe;
+
+            cellText = Replace(cellText, "'", "&rsquo;")
+
+            cellText = Replace(cellText, ChrW(&H2019), "&rsquo;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with Initail Quotes;
+
+            cellText = Replace(cellText, """", "&ldquo;")
+
+            cellText = Replace(cellText, ChrW(&H201C), "&ldquo;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with End Quotes;
+
+            cellText = Replace(cellText, """", "&rdquo;")
+
+            cellText = Replace(cellText, ChrW(&H201D), "&rdquo;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            ' Replace bullets with Section "Symbol (§) ? &sect;"
+
+            cellText = Replace(cellText, """", "&sect;")
+
+            cellText = Replace(cellText, ChrW(&HA7), "&sect;")
+
+            Selection.Find.Replacement.ClearFormatting
+
+           
+
+            cellText = Replace(cellText, Chr(11), "<br>")
+
+                       
+
+            '=======AcuteCharacters============
+
+   
+
+    
+
+            cellText = Replace(cellText, "á", "&aacute;")
+
+            cellText = Replace(cellText, "à", "&agrave;")
+
+            cellText = Replace(cellText, "â", "&acirc;")
+
+            cellText = Replace(cellText, "ä", "&auml;")
+
+            cellText = Replace(cellText, "ã", "&atilde;")
+
+            cellText = Replace(cellText, "å", "&aring;")
+
+            cellText = Replace(cellText, "Á", "&Aacute;")
+
+            cellText = Replace(cellText, "À", "&Agrave;")
+
+            cellText = Replace(cellText, "Â", "&Acirc;")
+
+            cellText = Replace(cellText, "Ä", "&Auml;")
+
+            cellText = Replace(cellText, "Ã", "&Atilde;")
+
+            cellText = Replace(cellText, "Å", "&Aring;")
+
+            cellText = Replace(cellText, "é", "&eacute;")
+
+            cellText = Replace(cellText, "è", "&egrave;")
+
+            cellText = Replace(cellText, "ê", "&ecirc;")
+
+            cellText = Replace(cellText, "ë", "&euml;")
+
+            cellText = Replace(cellText, "É", "&Eacute;")
+
+            cellText = Replace(cellText, "È", "&Egrave;")
+
+            cellText = Replace(cellText, "Ê", "&Ecirc;")
+
+            cellText = Replace(cellText, "Ë", "&Euml;")
+
+            cellText = Replace(cellText, "í", "&iacute;")
+
+            cellText = Replace(cellText, "ì", "&igrave;")
+
+            cellText = Replace(cellText, "î", "&icirc;")
+
+            cellText = Replace(cellText, "ï", "&iuml;")
+
+            cellText = Replace(cellText, "Í", "&Iacute;")
+
+            cellText = Replace(cellText, "Ì", "&Igrave;")
+
+            cellText = Replace(cellText, "Î", "&Icirc;")
+
+            cellText = Replace(cellText, "Ï", "&Iuml;")
+
+            cellText = Replace(cellText, "ó", "&oacute;")
+
+            cellText = Replace(cellText, "ò", "&ograve;")
+
+            cellText = Replace(cellText, "ô", "&ocirc;")
+
+            cellText = Replace(cellText, "ö", "&ouml;")
+
+            cellText = Replace(cellText, "õ", "&otilde;")
+
+            cellText = Replace(cellText, "Ó", "&Oacute;")
+
+            cellText = Replace(cellText, "Ò", "&Ograve;")
+
+            cellText = Replace(cellText, "Ô", "&Ocirc;")
+
+            cellText = Replace(cellText, "Ö", "&Ouml;")
+
+            cellText = Replace(cellText, "Õ", "&Otilde;")
+
+            cellText = Replace(cellText, "ú", "&uacute;")
+
+            cellText = Replace(cellText, "ù", "&ugrave;")
+
+            cellText = Replace(cellText, "û", "&ucirc;")
+
+            cellText = Replace(cellText, "ü", "&uuml;")
+
+            cellText = Replace(cellText, "Ú", "&Uacute;")
+
+            cellText = Replace(cellText, "Ù", "&Ugrave;")
+
+            cellText = Replace(cellText, "Û", "&Ucirc;")
+
+            cellText = Replace(cellText, "Ü", "&Uuml;")
+
+            cellText = Replace(cellText, "ñ", "&ntilde;")
+
+            cellText = Replace(cellText, "Ñ", "&Ntilde;")
+
+            cellText = Replace(cellText, "ç", "&ccedil;")
+
+            cellText = Replace(cellText, "Ç", "&Ccedil;")
+
+            cellText = Replace(cellText, "ý", "&yacute;")
+
+            cellText = Replace(cellText, "ÿ", "&yuml;")
+
+            cellText = Replace(cellText, "Ý", "&Yacute;")
+
+            cellText = Replace(cellText, "œ", "&oelig;")
+
+            cellText = Replace(cellText, "Œ", "&OElig;")
+
+            cellText = Replace(cellText, "ø", "&oslash;")
+
+            cellText = Replace(cellText, "Ø", "&Oslash;")
+
+            cellText = Replace(cellText, "ß", "&szlig;")
+
+            cellText = Replace(cellText, "§", "&sect;")
+
+            cellText = Replace(cellText, "©", "&copy;")
+
+            cellText = Replace(cellText, "®", "&reg;")
+
+            cellText = Replace(cellText, "µ", "&micro;")
+
+           
+
+            ' Check if Wingdings/Webdings
+
+'            If fontName Like "*Wingdings*" Or fontName Like "*Webdings*" Then
+
+'                inWingdings = True
+
+'               cellText = GetSymbol(cellText)
+
+'                inWingdings = False
+
+'            End If
+
+ 
+
+            Dim charNum As Long
+
+            If fontName Like "*Wingdings*" Or fontName Like "*Webdings*" Then
+
+                inWingdings = True
+
+                charNum = AscW(run1.Text)
+
+                cellText = ReplaceWingdingsSymbol(charNum, fontName)
+
+            ElseIf fontName Like "Arial" Then
+
+                    fontName = "Arial, Helvetica, Sans-Serif;"
+
+                Else
+
+                    fontName = "Times New Roman, Times, Serif;"
+
+            End If
+
+ 
+
+           
+
+            ' Get formatting for non-Wingdings
+
+            If Not inWingdings Then
+
+                With run1.Font
+
+                    fontSizeCurrent = .Size
+
+                    boldCurrent = .Bold
+
+                    italicCurrent = .Italic
+
+                    underlineCurrent = (.Underline <> wdUnderlineNone)
+
+                    fontColorCurrent = RGBToHex(.Color)
+
+                End With
+
+            Else
+
+                fontSizeCurrent = -1
+
+                boldCurrent = False
+
+                italicCurrent = False
+
+                underlineCurrent = False
+
+            End If
+
+           
+
+                   
+
+            ' Start new font/style if font size font color or Wingdings status changes
+
+            If fontSizeCurrent <> fontSizePrev Or fontColorCurrent <> fontColorPrev Or inWingdings = True Then
+
+            
+
+            'If fontSizeCurrent <> fontSizePrev Or inWingdings <> prevInWingdings Then
+
+                If fontSizeCurrent > 24 Then fontSizeCurrent = fontSizePrev
+
+               
+
+                 ' --- Close previous open tags ---
+
+                If openUnderline Then htmlLine = htmlLine & "</u>": openUnderline = False
+
+                If openItalic Then htmlLine = htmlLine & "</i>": openItalic = False
+
+                If openBold Then htmlLine = htmlLine & "</b>": openBold = False
+
+                If fontSizePrev <> -1 And Not prevInWingdings Then htmlLine = htmlLine
+
+                If fontcolorOpen Then htmlLine = htmlLine:  fontcolorOpen = False
+
+                If fontsizeOpen Then htmlLine = htmlLine: fontsizeOpen = False
+
+               
+
+                ' --- Close previous Wingdings/Webdings tag ---
+
+                If prevInWingdings Then
+
+                    htmlLine = htmlLine & "</FONT>"
+
+                    prevInWingdings = False
+
+                End If
+
+               
+
+                    If fontColorCurrent <> "" Then
+
+                        htmlLine = htmlLine & "<FONT STYLE=""" & "color:" & fontColorCurrent & ";" & """>"
+
+                        fontcolorOpen = True
+
+                    End If
+
+                   
+
+                    If fontSizeCurrent > 0 And fontSizeCurrent <> 12 And fontSizeCurrent <> 10 Then
+
+                        htmlLine = htmlLine & "<FONT STYLE=""font-size:" & Format(fontSizeCurrent, "0") & "pt"">"
+
+                        fontsizeOpen = True
+
+                    End If
+
+                   
+
+ 
+
+                ' --- Open Wingdings/Webdings font ---
+
+                If inWingdings Then
+
+                    htmlLine = htmlLine & "<FONT STYLE=""font-family:" & fontName & ";"">"
+
+                    prevInWingdings = True
+
+                Else
+
+                    prevInWingdings = False
+
+                End If
+
+               
+
+                
+
+                
+
+                ' Reset previous formatting
+
+                boldPrev = False
+
+                italicPrev = False
+
+                underlinePrev = False
+
+                inWingdings = False
+
+            End If
+
+           
+
+            ' Handle consecutive Bold
+
+            If boldCurrent <> boldPrev And Not inWingdings Then
+
+                If boldCurrent Then htmlLine = htmlLine & "<b>": openBold = True
+
+                If Not boldCurrent And openBold Then htmlLine = htmlLine & "</b>": openBold = False
+
+            End If
+
+           
+
+            ' Handle consecutive Italic
+
+            If italicCurrent <> italicPrev And Not inWingdings Then
+
+                If italicCurrent Then htmlLine = htmlLine & "<i>": openItalic = True
+
+                If Not italicCurrent And openItalic Then htmlLine = htmlLine & "</i>": openItalic = False
+
+            End If
+
+           
+
+            ' Handle consecutive Underline
+
+            If underlineCurrent <> underlinePrev And Not inWingdings Then
+
+                If underlineCurrent Then htmlLine = htmlLine & "<u>": openUnderline = True
+
+                If Not underlineCurrent And openUnderline Then htmlLine = htmlLine & "</u>": openUnderline = False
+
+            End If
+
+           
+
+            ' Append text
+
+           
+
+            htmlLine = htmlLine & cellText
+
+                
+
+            ' Update previous states
+
+            fontSizePrev = fontSizeCurrent
+
+            boldPrev = boldCurrent
+
+            italicPrev = italicCurrent
+
+            underlinePrev = underlineCurrent
+
+            'prevInWingdings = inWingdings
+
+            fontColorPrev = fontColorCurrent
+
+   
+
+            '=================================
+
+                      
+
+SkipRun:
+
+        Next run1
+
+       
+
+        ' Close remaining tags
+
+        If openUnderline Then htmlLine = htmlLine & "</u>"
+
+        If openItalic Then htmlLine = htmlLine & "</i>"
+
+        If openBold Then htmlLine = htmlLine & "</b>"
+
+        If fontsizeOpen Then htmlLine = htmlLine & "</FONT>"
+
+        If fontcolorOpen Then htmlLine = htmlLine
+
+        ' & "</FONT>"
+
+        If fontSizePrev <> -1 And fontSizeCurrent > 12 And Not prevInWingdings Then htmlLine = htmlLine & "</FONT>"
+
+        If prevInWingdings Then htmlLine = htmlLine & "</FONT>"
+
+       
+
+    End If
+
+               
+
+                
+
+                Selection.Find.Replacement.ClearFormatting
+
+                ' Determine text alignment
+
+                Select Case cel.Range.ParagraphFormat.Alignment
+
+                    Case wdAlignParagraphRight
+
+                        alignText = "right"
+
+                    Case wdAlignParagraphCenter
+
+                        alignText = "center"
+
+                    'Case Else
+
+                     '   alignText = "justify"
+
+                End Select
+
+               
+
+                '-------Cell pading-----------
+
+                Left_indent = cel.Range.ParagraphFormat.LeftIndent & "pt"
+
+                hangingIndent = cel.Range.ParagraphFormat.FirstLineIndent & "pt"
+
+                Right_indent = cel.Range.ParagraphFormat.RightIndent & "pt"
+
+                Top_indent = cel.Range.ParagraphFormat.SpaceAfter & "pt"
+
+                Bottom_indent = cel.Range.ParagraphFormat.SpaceBefore & "pt"
+
+               
+
+                ' Detect font
+
+                If cel.Range.Font.Name = "Arial" Then
+
+                    fontFamily = "Arial, Helvetica, Sans-Serif"
+
+                Else
+
+                    fontFamily = "Times New Roman, Times, Serif"
+
+                End If
+
+               
+
+                If cel.Range.Font.Size >= 999999 Then
+
+                    fontSize = 10 & "pt"
+
+                    Else
+
+                    fontSize = cel.Range.Font.Size & "pt"
+
+                End If
+
+               
+
+                ' Border bottom
+
+                Dim borderStyle As String
+
+                Dim clr As String
+
+ 
+
+                'Set cel = Selection.Cells(1)
+
+                borderStyle = ""
+
+               
+
+                '--- Top Border ---
+
+                borderStyle = GetCellBorderStyle(cel)
+
+               
+
+                ' Build htmltbl cell
+
+               
+
+                
+
+                htmltbl = htmltbl & "<td " & " style=""" & "Font-size=" & fontSize & ";" & "font-family:" & fontFamily & "; vertical-align:bottom; text-align:" & alignText & "; padding-left:" & Left_indent & "; text-indent:" & hangingIndent & "; padding-top:" & Top_indent & "; padding-bottom:" & Bottom_indent & "; padding-right:" & Right_indent & ";" & borderStyle & """>" & htmlLine & "</td>" & vbCrLf & vbCrLf
+
+                         
+
+skipcell:
+
+            Next cel
+
+                       
+
+           htmltbl = htmltbl & "</tr>" & vbCrLf & vbCrLf
+
+          
+
+        Next row
+
+       
+
+        'Next Tbl
+
+       
+
+        htmltbl = htmltbl & vbCrLf & "</table>" & vbCrLf & vbCrLf
+
+                       
+
+        ConvertWordTableToHTML_TEXT = htmltbl
+
+   
+
+End Function
+
+'======================================
+
+' DETECT FINANCIAL PATTERNS
+
+'======================================
+
+Function IsFinancialText(txt As String) As Boolean
+
+    Dim RE As Object
+
+    Set RE = CreateObject("VBScript.RegExp")
+
+   
+
+    RE.Pattern = "(\$?\(?\d{1,3}(,\d{3})+(\.\d+)?\)?%?)|(\$?\(?\d+\.\d+\)?%?)|(\$+\d+)"
+
+    RE.IgnoreCase = True
+
+    RE.Global = False
+
+   
+
+    IsFinancialText = RE.Test(txt)
+
+End Function
+
+ 
+
+Function CleanCellText(t As String) As String
+
+    CleanCellText = Replace(t, Chr(13) & Chr(7), "")
+
+End Function
+
+ 
+
+Function GetAutoWidth(txt As String, Optional extraChars As Long = 0) As String
+
+    'Estimate width based on characters and add extra space if needed.
+
+    '1ch ˜ 0.6% of table width (adjust if needed)
+
+   
+
+    Dim base As Double
+
+    base = Len(txt) * 0.6
+
+   
+
+    If extraChars > 0 Then
+
+        base = base + (extraChars * 0.6)
+
+    End If
+
+   
+
+    'Prevent too small or too large values
+
+    If base < 1 Then base = 1
+
+    If base > 30 Then base = 30
+
+   
+
+    GetAutoWidth = Format(base, "0") & "%"
+
+End Function
+
+ 
+
+Function MakeTD(txt As String, width As String, align As String, _
+
+                fSize As String, fName As String, borderStyle As String, colorCode As String) As String
+
+ 
+
+    MakeTD = "<td style=""width:" & width & _
+
+             ";text-align:" & align & _
+
+             ";font-size:" & fSize & _
+
+             ";font-family:" & fName & _
+
+             ";" & borderStyle & colorCode & """>" & txt & "</font>" & "</td>" & vbCrLf & vbCrLf
+
+End Function
+
+ 
+
+Function GetEdgarHeaderRowCount(tbl As Table) As Long
+
+   
+
+    Dim r As Long, c As Long
+
+    Dim txt As String
+
+    Dim isHeader As Boolean
+
+    Dim hasNumber As Boolean
+
+    Dim headerRows As Long
+
+   
+
+    headerRows = 0
+
+   
+
+    For r = 1 To tbl.rows.count
+
+       
+
+        isHeader = False
+
+        hasNumber = False
+
+       
+
+        ' ---------------------------------------
+
+        ' Step 1: Detect if row contains numbers
+
+        ' ---------------------------------------
+
+        For c = 1 To tbl.rows(r).Cells.count
+
+           
+
+            txt = CleanCellText(tbl.rows(r).Cells(c).Range.Text)
+
+           
+
+            If txt Like "*#,#*" Or _
+
+               txt Like "*(#,#)*" Or _
+
+               txt Like "*.#*" Or _
+
+               IsNumeric(txt) Then
+
+              
+
+                hasNumber = True
+
+                Exit For
+
+            End If
+
+        Next c
+
+       
+
+        ' First numeric row ? data row ? STOP
+
+        If hasNumber Then Exit For
+
+       
+
+        
+
+        ' ---------------------------------------
+
+        ' Step 2: Apply EDGAR header rules
+
+        ' ---------------------------------------
+
+        If RowIsBlank(tbl, r) _
+
+        Or RowHasDate(tbl, r) _
+
+        Or RowHasUnits(tbl, r) _
+
+        Or RowHasYearOnly(tbl, r) _
+
+        Or RowHasAuditStatus(tbl, r) _
+
+        Or RowIsTextOnly(tbl, r) _
+
+        Or RowIsCentered(tbl, r) _
+
+        Or RowIsBoldText(tbl, r) Then
+
+       
+
+            isHeader = True
+
+        End If
+
+       
+
+        ' Not header ? STOP LOOP
+
+        If Not isHeader Then Exit For
+
+       
+
+        headerRows = headerRows + 1
+
+    Next r
+
+   
+
+    GetEdgarHeaderRowCount = headerRows
+
+End Function
+
+Function RowIsBlank(tbl As Table, r As Long) As Boolean
+
+    Dim c As Long
+
+    For c = 1 To tbl.rows(r).Cells.count
+
+        If CleanCellText(tbl.rows(r).Cells(c).Range.Text) <> "" Then
+
+            RowIsBlank = False: Exit Function
+
+        End If
+
+    Next
+
+    RowIsBlank = True
+
+End Function
+
+Function RowHasDate(tbl As Table, r As Long) As Boolean
+
+    Dim m As String, c As Long, t As String
+
+    For c = 1 To tbl.rows(r).Cells.count
+
+        t = LCase(CleanCellText(tbl.rows(r).Cells(c).Range.Text))
+
+        If t Like "*january*" Or t Like "*feb*" Or t Like "*mar*" Or _
+
+           t Like "*apr*" Or t Like "*may*" Or t Like "*jun*" Or _
+
+           t Like "*jul*" Or t Like "*aug*" Or t Like "*sep*" Or _
+
+           t Like "*oct*" Or t Like "*nov*" Or t Like "*dec*" Or _
+
+           InStr(t, "ended") > 0 Then
+
+           RowHasDate = True: Exit Function
+
+        End If
+
+    Next
+
+End Function
+
+Function RowHasUnits(tbl As Table, r As Long) As Boolean
+
+    Dim c As Long, t As String
+
+    For c = 1 To tbl.rows(r).Cells.count
+
+        t = LCase(CleanCellText(tbl.rows(r).Cells(c).Range.Text))
+
+        If InStr(t, "thousand") > 0 Or InStr(t, "million") > 0 Or _
+
+           InStr(t, "share") > 0 Or InStr(t, "per share") > 0 Then
+
+           RowHasUnits = True: Exit Function
+
+        End If
+
+    Next
+
+End Function
+
+Function RowHasYearOnly(tbl As Table, r As Long) As Boolean
+
+    Dim c As Long, t As String
+
+    For c = 1 To tbl.rows(r).Cells.count
+
+        t = CleanCellText(tbl.rows(r).Cells(c).Range.Text)
+
+        If t Like "20##" Then
+
+            RowHasYearOnly = True: Exit Function
+
+        End If
+
+    Next
+
+End Function
+
+Function RowHasAuditStatus(tbl As Table, r As Long) As Boolean
+
+    Dim c As Long, t As String
+
+    For c = 1 To tbl.rows(r).Cells.count
+
+        t = LCase(CleanCellText(tbl.rows(r).Cells(c).Range.Text))
+
+        If InStr(t, "audited") > 0 Or InStr(t, "unaudited") > 0 Then
+
+            RowHasAuditStatus = True: Exit Function
+
+        End If
+
+    Next
+
+End Function
+
+Function RowIsTextOnly(tbl As Table, r As Long) As Boolean
+
+    Dim c As Long, t As String
+
+    For c = 1 To tbl.rows(r).Cells.count
+
+        t = CleanCellText(tbl.rows(r).Cells(c).Range.Text)
+
+        If IsNumeric(t) Or t Like "*#,#*" Or t Like "*#.#*" Then
+
+            RowIsTextOnly = False: Exit Function
+
+        End If
+
+    Next
+
+    RowIsTextOnly = True
+
+End Function
+
+Function RowIsCentered(tbl As Table, r As Long) As Boolean
+
+    RowIsCentered = (tbl.rows(r).Cells(1).Range.ParagraphFormat.Alignment = wdAlignParagraphCenter)
+
+End Function
+
+Function RowIsBoldText(tbl As Table, r As Long) As Boolean
+
+    RowIsBoldText = (tbl.rows(r).Range.Font.Bold = True)
+
+End Function
+
+ 
+
+Function DetectHeaderRows(tbl As Table) As Long
+
+ 
+
+    Dim r As Long, c As Long
+
+    Dim txt As String, low As String
+
+    Dim maxHeaderRow As Long
+
+    Dim stopRow As Long
+
+   
+
+    maxHeaderRow = 0
+
+    stopRow = 0
+
+   
+
+    ' ====================================================
+
+    ' Scan entire table for header indicators and stop cues
+
+    ' ====================================================
+
+    For r = 1 To tbl.rows.count
+
+        For c = 1 To tbl.rows(r).Cells.count
+
+       
+
+            txt = CleanCellText(tbl.rows(r).Cells(c).Range.Text)
+
+            low = LCase(txt)
+
+           
+
+            If low = Chr(160) Then GoTo skipcell:
+
+                       
+
+            ' ====================================================
+
+            '                 HEADER DETECTION RULES
+
+            ' ====================================================
+
+           
+
+            
+
+            ' ---------- Rule 1: Month names ----------
+
+            If low Like "*jan*" Or low Like "*feb*" Or low Like "*mar*" Or _
+
+               low Like "*apr*" Or low Like "*may*" Or low Like "*jun*" Or _
+
+               low Like "*jul*" Or low Like "*aug*" Or low Like "*sep*" Or _
+
+               low Like "*oct*" Or low Like "*nov*" Or low Like "*dec*" Then
+
+              
+
+               If r > maxHeaderRow Then maxHeaderRow = r
+
+            End If
+
+           
+
+            ' ---------- Rule 2: Month + day date headers ----------
+
+            If (low Like "*jan* ##*" Or low Like "*feb* ##*" Or _
+
+                low Like "*mar* ##*" Or low Like "*apr* ##*" Or _
+
+                low Like "*may* ##*" Or low Like "*jun* ##*" Or _
+
+                low Like "*jul* ##*" Or low Like "*aug* ##*" Or _
+
+                low Like "*sep* ##*" Or low Like "*oct* ##*" Or _
+
+                low Like "*nov* ##*" Or low Like "*dec* ##*") Then
+
+               
+
+                If r > maxHeaderRow Then maxHeaderRow = r
+
+            End If
+
+           
+
+            ' ---------- Rule 3: Year headers (2024, 2025) ----------
+
+            If txt Like "20##" Or txt Like "(20##)" Then
+
+                If r > maxHeaderRow Then maxHeaderRow = r
+
+            End If
+
+           
+
+            ' ---------- Rule 4: Audit status ----------
+
+            If InStr(low, "audited") > 0 Or InStr(low, "unaudited") > 0 Then
+
+                If r > maxHeaderRow Then maxHeaderRow = r
+
+            End If
+
+           
+
+            ' ---------- Rule 5: Units ----------
+
+            If InStr(low, "thousand") > 0 Or _
+
+               InStr(low, "million") > 0 Or _
+
+               InStr(low, "except") > 0 Or _
+
+               InStr(low, "per share") > 0 Then
+
+              
+
+               If r > maxHeaderRow Then maxHeaderRow = r
+
+            End If
+
+           
+
+            ' ---------- Rule 6: Financial captions ----------
+
+            If InStr(low, "amount") > 0 Or _
+
+               InStr(low, "% of total") > 0 Or _
+
+               InStr(low, "fair value") > 0 Or _
+
+               InStr(low, "unrealized") > 0 Or _
+
+               InStr(low, "gain") > 0 Or _
+
+               InStr(low, "loss") > 0 Or _
+
+               InStr(low, "amortized") > 0 Or _
+
+               InStr(low, "cost") > 0 Or _
+
+               InStr(low, "shares") > 0 Or _
+
+               InStr(low, "capital") > 0 Or _
+
+               InStr(low, "income (loss)") > 0 Then
+
+              
+
+               If r > maxHeaderRow Then maxHeaderRow = r
+
+            End If
+
+           
+
+            ' ---------- Rule 7: Equity captions ----------
+
+            If InStr(low, "common stock") > 0 Or _
+
+               InStr(low, "preferred stock") > 0 Or _
+
+               InStr(low, "additional paid-in") > 0 Or _
+
+               InStr(low, "accumulated other comprehensive") > 0 Or _
+
+               InStr(low, "retained earnings") > 0 Then
+
+              
+
+               If r > maxHeaderRow Then maxHeaderRow = r
+
+            End If
+
+       
+
+        ' ====================================================
+
+            '                STOP CONDITIONS
+
+            '  (Data begins ? stop scanning)
+
+            ' ====================================================
+
+           
+
+            ' ---------- STOP 1: Financial section names ----------
+
+            If low Like "*asset*" Or low Like "*liabilit*" Or _
+
+               low Like "*equity*" Or low Like "*revenue*" Or _
+
+               low Like "*expense*" Or low Like "*income*" Or _
+
+               low Like "*cash*" Or low Like "*operations*" Then
+
+              
+
+               stopRow = r
+
+               If r = maxHeaderRow And maxHeaderRow > 0 Then maxHeaderRow = stopRow
+
+               GoTo Finalize
+
+            End If
+
+           
+
+            ' ---------- STOP 2: $ with comma number ----------
+
+            If low Like "*$#,*" Or low Like "*$ #,*" Or _
+
+               low Like "*$(#,#)*" Or low Like "*$(*" Then
+
+              
+
+               stopRow = r
+
+               If r = maxHeaderRow And maxHeaderRow > 0 Then maxHeaderRow = maxHeaderRow - 1
+
+               GoTo Finalize
+
+            End If
+
+           
+
+            ' ---------- STOP 3: numeric data rows WITH comma ----------
+
+            If txt Like "*#,#*" Or txt Like "*(#,#)*" Then
+
+               stopRow = r
+
+               If r = maxHeaderRow And maxHeaderRow > 0 Then maxHeaderRow = maxHeaderRow - 1
+
+               GoTo Finalize
+
+            End If
+
+       
+
+skipcell:
+
+        Next c
+
+    Next r
+
+   
+
+    
+
+Finalize:
+
+ 
+
+    ' ====================================================
+
+    ' EDGE-CASE FIXES
+
+    ' ====================================================
+
+   
+
+    ' ---- Rule: If header not detected but stopRow=2 ? header = 1
+
+    If maxHeaderRow = 0 And stopRow = 2 Then
+
+        maxHeaderRow = 1
+
+    End If
+
+   
+
+    ' ---- Never allow negative
+
+    If maxHeaderRow < 0 Then maxHeaderRow = 0
+
+   
+
+    DetectHeaderRows = maxHeaderRow
+
+ 
+
+End Function
+
+ 
+
+Function DetectHeaderRows2(tbl As Table) As Long
+
+ 
+
+    Dim r As Long, c As Long
+
+    Dim txt As String, low As String
+
+    Dim maxHeaderRow As Long
+
+   
+
+    maxHeaderRow = 0
+
+   
+
+    For r = 1 To tbl.rows.count
+
+        For c = 1 To tbl.rows(r).Cells.count
+
+       
+
+            txt = CleanCellText(tbl.rows(r).Cells(c).Range.Text)
+
+            low = LCase(txt)
+
+            If low = "" Then GoTo skipcell
+
+            ' =======================================
+
+            ' 0. STOP CONDITIONS -> DATA HAS STARTED
+
+            ' =======================================
+
+           
+
+            ' ---- STOP RULE A: Section names (Assets, Liabilities)
+
+            If low Like "*asset*" Or low Like "*liabilit*" Or _
+
+               low Like "*equity*" Or low Like "*revenue*" Or _
+
+               low Like "*expense*" Or low Like "*income*" Or _
+
+               low Like "*cash*" Or low Like "*operations*" Then
+
+              
+
+               DetectHeaderRows = maxHeaderRow
+
+               Exit Function
+
+            End If
+
+           
+
+            ' ---- STOP RULE B: $ with number
+
+            If low Like "*$#,*" Or low Like "*$ #,*" Or _
+
+               low Like "*$(#,#)*" Or low Like "*$(*" Then
+
+              
+
+               DetectHeaderRows = maxHeaderRow
+
+               Exit Function
+
+            End If
+
+           
+
+            ' ---- STOP RULE C: numeric data rows WITH COMMA ONLY
+
+            If txt Like "*#,#*" Or txt Like "*(#,#)*" Then
+
+                DetectHeaderRows = maxHeaderRow
+
+                Exit Function
+
+            End If
+
+           
+
+            
+
+            ' =======================================
+
+            ' HEADER DETECTION RULES
+
+            ' =======================================
+
+           
+
+            ' ---------- Rule 1: Month headers ----------
+
+            If low Like "*jan*" Or low Like "*feb*" Or low Like "*mar*" Or _
+
+               low Like "*apr*" Or low Like "*may*" Or low Like "*jun*" Or _
+
+               low Like "*jul*" Or low Like "*aug*" Or low Like "*sep*" Or _
+
+               low Like "*oct*" Or low Like "*nov*" Or low Like "*dec*" Then
+
+              
+
+               If r > maxHeaderRow Then maxHeaderRow = r
+
+            End If
+
+ 
+
+            ' ---------- Rule 2: Date headers (Month + day) ----------
+
+            If (low Like "*jan* ##*" Or low Like "*feb* ##*" Or _
+
+                low Like "*mar* ##*" Or low Like "*apr* ##*" Or _
+
+                low Like "*may* ##*" Or low Like "*jun* ##*" Or _
+
+                low Like "*jul* ##*" Or low Like "*aug* ##*" Or _
+
+                low Like "*sep* ##*" Or low Like "*oct* ##*" Or _
+
+                low Like "*nov* ##*" Or low Like "*dec* ##*") Then
+
+               
+
+                If r > maxHeaderRow Then maxHeaderRow = r
+
+            End If
+
+ 
+
+            ' ---------- Rule 3: Year (2024, 2025) ----------
+
+            If txt Like "20##" Or txt Like "(20##)" Then
+
+                If r > maxHeaderRow Then maxHeaderRow = r
+
+            End If
+
+ 
+
+            ' ---------- Rule 4: Audited / Unaudited ----------
+
+            If InStr(low, "audited") > 0 Or InStr(low, "unaudited") > 0 Then
+
+                If r > maxHeaderRow Then maxHeaderRow = r
+
+            End If
+
+ 
+
+            ' ---------- Rule 5: Units rows ----------
+
+            If InStr(low, "thousand") > 0 Or InStr(low, "million") > 0 Or _
+
+               InStr(low, "except") > 0 Or InStr(low, "per share") > 0 Then
+
+              
+
+               If r > maxHeaderRow Then maxHeaderRow = r
+
+            End If
+
+ 
+
+            ' ---------- Rule 6: Financial captions ----------
+
+            If InStr(low, "amount") > 0 Or _
+
+               InStr(low, "% of total") > 0 Or _
+
+               InStr(low, "fair value") > 0 Or _
+
+               InStr(low, "unrealized") > 0 Or _
+
+               InStr(low, "gain") > 0 Or _
+
+               InStr(low, "loss") > 0 Or _
+
+               InStr(low, "amortized") > 0 Or _
+
+               InStr(low, "cost") > 0 Or _
+
+               InStr(low, "shares") > 0 Or _
+
+               InStr(low, "capital") > 0 Or _
+
+               InStr(low, "income (loss)") > 0 Then
+
+              
+
+               If r > maxHeaderRow Then maxHeaderRow = r
+
+            End If
+
+ 
+
+            ' ---------- Rule 7: Equity captions ----------
+
+            If InStr(low, "common stock") > 0 Or _
+
+               InStr(low, "preferred stock") > 0 Or _
+
+               InStr(low, "additional paid-in") > 0 Or _
+
+               InStr(low, "accumulated other comprehensive") > 0 Or _
+
+               InStr(low, "retained earnings") > 0 Then
+
+              
+
+               If r > maxHeaderRow Then maxHeaderRow = r
+
+            End If
+
+skipcell:
+
+        Next c
+
+    Next r
+
+   
+
+    DetectHeaderRows = maxHeaderRow
+
+End Function
+
+ 
+
+Function MakePageNumberDiv(pgNo As Long) As String
+
+    Dim html As String
+
+ 
+
+    html = ""
+
+    html = html & "<DIV STYLE=""margin-top: 6pt; margin-bottom: 6pt; border-bottom: Black 1pt solid"">"
+
+    html = html & "<p style=""text-align: center; margin-top: 0pt; margin-bottom: 0pt"">"
+
+    html = html & "<font style=""font-family: Arial, Helvetica, Sans-Serif; font-size: 10pt"">"
+
+    html = html & "<!-- Field: Sequence; Type: Arabic; Name: PageNo -->" & pgNo & "<!-- Field: /Sequence -->"
+
+    html = html & "</font>&nbsp;"
+
+    html = html & "</p></DIV>"
+
+ 
+
+    MakePageNumberDiv = html
+
+End Function
+
+ 
+
+Function SafeMarginValue(v As Single) As String
+
+    ' Convert points ? pixels/HTML pts as needed.
+
+    ' Word values come in points, so divide by 0.75 if needed.
+
+   
+
+    If v < 0 Then
+
+        SafeMarginValue = "0pt"     ' Force zero for negative values
+
+    Else
+
+        SafeMarginValue = Format(PointsToHTML(v), "0.0") & "pt"
+
+    End If
+
+End Function
+
+ 
+
+Function PointsToHTML(v As Single) As Single
+
+    ' Word uses points; HTML also supports pt directly
+
+    ' If you want px use: v / 0.75
+
+    PointsToHTML = v
+
+End Function
+
+ 
+
+'==========================
+
+' SAVE IMAGE & BUILD HTML
+
+'==========================
+
+Function SaveImageAndGetHTML1(iSh As InlineShape) As String
+
+    Dim fileName As String, imgCount As String, savePath As String
+
+    Dim fullPath As String
+
+    Dim w As Single, h As Single
+
+    Dim html As String
+
+   
+
+    'Create image name
+
+    fileName = "img_" & Format(imgCount, "000") & ".jpg"
+
+    fullPath = savePath & "\" & fileName
+
+ 
+
+    'Export the image
+
+'    ish.Select
+
+    Selection.CopyAsPicture
+
+   
+
+    ' Paste into a temp document
+
+    Dim tempDoc As Document
+
+    Set tempDoc = Documents.Add
+
+    tempDoc.Content.Paste
+
+ 
+
+    ' Save shape as JPG
+
+    tempDoc.SaveAs2 fullPath, FileFormat:=wdFormatDocument
+
+    tempDoc.Close SaveChanges:=False
+
+ 
+
+    ' Image dimensions in points
+
+    w = iSh.width
+
+    h = iSh.Height
+
+ 
+
+    ' Build <img> HTML
+
+    html = "<img src=""" & fileName & """ style=""width:" & Format(w, "0") _
+
+           & "pt; height:" & Format(h, "0") & "pt"">"
+
+ 
+
+    SaveImageAndGetHTML = html
+
+End Function
+
+ 
+
+'==========================
+
+' GET IMAGE ALIGNMENT
+
+'==========================
+
+Function GetImageAlignHTML(p As Paragraph) As String
+
+    Select Case p.Alignment
+
+        Case wdAlignParagraphCenter: GetImageAlignHTML = "text-align:center;"
+
+        Case wdAlignParagraphRight:  GetImageAlignHTML = "text-align:right;"
+
+        Case Else: GetImageAlignHTML = "text-align:left;"
+
+    End Select
+
+End Function
